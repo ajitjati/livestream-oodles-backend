@@ -25,24 +25,27 @@ public class UserRegistry {
 
 	private ConcurrentHashMap<String, UserSession> usersByName = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, UserSession> usersBySessionId = new ConcurrentHashMap<>();
-        
-        private static final Logger log = LoggerFactory.getLogger(UserRegistry.class);
-	
-        public void register(UserSession user) {
-                log.debug("registering user:",user.getName());
-                UserSession unRegisteredUserSession = usersBySessionId.get(user.getSession().getId());
-            
-                //delete old sessions without name and replace with the same session but with name
-                //it is necessary for the status which can be queried also in unregistered state
-                if(unRegisteredUserSession!=null){
-                    log.debug("removing unregisteredUserSession with name:"+unRegisteredUserSession.getName());
-                    usersByName.remove(unRegisteredUserSession.getName());
-                    usersBySessionId.remove(unRegisteredUserSession.getSession().getId());
-                }
-                
+	private ConcurrentHashMap<String, List<UserSession>> siteVisitors = new ConcurrentHashMap<>();
+
+	private static final Logger log = LoggerFactory.getLogger(UserRegistry.class);
+
+	public void register(UserSession user) {
+		log.debug("registering user:", user.getName());
+		UserSession unRegisteredUserSession = usersBySessionId.get(user.getSession().getId());
+
+		// delete old sessions without name and replace with the same session
+		// but with name
+		// it is necessary for the status which can be queried also in
+		// unregistered state
+		if (unRegisteredUserSession != null) {
+			log.debug("removing unregisteredUserSession with name:" + unRegisteredUserSession.getName());
+			usersByName.remove(unRegisteredUserSession.getName());
+			usersBySessionId.remove(unRegisteredUserSession.getSession().getId());
+		}
+
 		usersByName.put(user.getName(), user);
 		usersBySessionId.put(user.getSession().getId(), user);
-            
+
 	}
 
 	public UserSession getByName(String name) {
@@ -80,7 +83,47 @@ public class UserRegistry {
 	public List<UserSession> getUserSessions() {
 		return new ArrayList<UserSession>(usersByName.values());
 	}
-        
 
+	/**
+	 * Adds a visitors user session to a site, given by the user name of the
+	 * site owner
+	 * 
+	 * @param user
+	 *            The user name of the site owner.
+	 * @param visitorSession
+	 *            The user session of the visitor.
+	 */
+	public void addVisitor(String user, UserSession visitorSession) {
+		visitorSession.setSite(user);
+		if (!siteVisitors.containsKey(user)) {
+			siteVisitors.put(user, new ArrayList<UserSession>());
+		}
+		siteVisitors.get(user).add(visitorSession);
+	}
+
+	public void removeVisitor(UserSession visitorSession) {
+		if (siteVisitors.containsKey(visitorSession.getSite())) {
+			siteVisitors.get(visitorSession.getSite()).remove(visitorSession);
+		}
+	}
+
+	public List<UserSession> getVisitors(String siteOwner) {
+		List<UserSession> result = siteVisitors.get(siteOwner);
+		if (result != null) {
+			return result;
+		}
+		return Collections.emptyList();
+	}
+
+	/**
+	 * Check, if the given user is the owner of a site. A user is a site owner,
+	 * if some site has a check for his online status
+	 * 
+	 * @param username
+	 * @return True, if the given user is a site owner
+	 */
+	public boolean isSiteOwner(String username) {
+		return siteVisitors.contains(username);
+	}
 
 }

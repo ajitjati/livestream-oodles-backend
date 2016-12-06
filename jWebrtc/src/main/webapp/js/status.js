@@ -14,20 +14,20 @@ var getCurrentScript = function () {
 var getCurrentServer = function(scriptPath){
       var l = document.createElement("a");
       l.href = scriptPath;
-      return l.hostname;
+      return l.host;
 }
 
 var server = getCurrentServer(getCurrentScript()); //change it in webrtcStatusWidget* too!
-if(server!='localhost' && server!='nicokrause.com') //development/integration/production server!
-        server = "webrtc.a-fk.de"; // getCurrentServer(); //change it in status.js / index.js too
+if(server.indexOf('localhost') < 0 && server.indexOf('nicokrause.com') < 0) //development/integration/production server!
+    server = "webrtc.a-fk.de"; // getCurrentServer(); //change it in status.js / index.js too
 
-        
+
 var ws = new WebSocket('wss://' + server + '/jWebrtc/ws');
 
 var localVideo;
 var remoteVideo;
-var miniVideo; 
-var icons; 
+var miniVideo;
+var icons;
 var webRtcPeer;
 var response;
 var callerMessage;
@@ -68,7 +68,7 @@ function setRegisterState(nextState) {
 function setCallState(nextState) {
 	switch (nextState) {
 	case NO_CALL:
-		
+
 	disableButton('#muteAudio');
 	disableButton('#muteVideo');
 	disableButton('#terminate');
@@ -76,7 +76,7 @@ function setCallState(nextState) {
         deactivate(this.miniVideo);
         deactivate(this.localVideo);
         this.deactivate(icons);
-        this.activate('#confirm-join-div'); 
+        this.activate('#confirm-join-div');
         enableButton('#call', 'call()');
 
 		break;
@@ -90,20 +90,20 @@ function setCallState(nextState) {
 		break;
 
 	case IN_CALL:
-        
+
         disableButton('#call');
         miniVideo.src = localVideo.src;
         activate(this.remoteVideo);
-        this.activate(icons); 
+        this.activate(icons);
         activate(this.miniVideo);
-        this.deactivate('#confirm-join-div'); 
+        this.deactivate('#confirm-join-div');
         activate(this.miniVideo);
-        
+
         enableButton('#muteVideo', 'muteVideo()');
         enableButton('#muteAudio', 'muteMicrophone()');
 		enableButton('#terminate', 'stop()');
 		break;
-		
+
 	default:
 		return;
 	}
@@ -112,7 +112,7 @@ function setCallState(nextState) {
 
 window.onload = function() {
     setRegisterState(NOT_REGISTERED);
-     	
+
 	ws.onopen = function() {
 		console.log("ws connection now open");
         requestAppConfig();
@@ -127,7 +127,7 @@ window.onbeforeunload = function() {
 ws.onmessage = function(message) {
 	var parsedMessage = JSON.parse(message.data);
 	console.info('Received message: ' + message.data);
-        
+
         if(parsedMessage.params){
             readAppConfig(parsedMessage);
             checkOnlineStatus(myConsultant);
@@ -197,21 +197,21 @@ function setOnlineStatus(message) {
 	if (message.message == myConsultant.name) {
 		myConsultant.status = message.response;
 	}
-    from = message.myUsername;
-    console.log('setting online status done: myUsername is:'+from);
+  from = message.myUsername;
+  console.log('setting online status done: myUsername is: ' + from);
 	statusTextElement.text(myConsultant.name + ' is ' + myConsultant.status);
-    if(myConsultant.status=='online'){
-        enableButton('#call', 'call()');
-    }else{
-        disableButton('#call');
-    }
+  if(myConsultant.status=='online') {
+    enableButton('#call', 'call()');
+  } else {
+    disableButton('#call');
+  }
 }
 
 function registerResponse(message) {
 	if (message.response == 'accepted') {
 		setRegisterState(REGISTERED);
-                from = message.myUsername;
-                console.log( "registerResponse:"+message.message+ " : "+from);
+    from = message.myUsername;
+    console.log("registerResponse: " + message.message + " : " + from);
 	} else {
 		setRegisterState(NOT_REGISTERED);
 		var errorMessage = message.message ? message.message
@@ -262,28 +262,28 @@ function incomingCall(message) {
 	if (confirm('User ' + message.from
 			+ ' is calling you. Do you accept the call?')) {
 
-        localVideo = document.getElementById('local-video');
-        remoteVideo = document.getElementById('remote-video');
-        miniVideo = document.getElementById('mini-video');
-        icons = document.getElementById('icons');
-        showSpinner(localVideo, remoteVideo);
-       
-        from = message.from;
+    localVideo = document.getElementById('local-video');
+    remoteVideo = document.getElementById('remote-video');
+    miniVideo = document.getElementById('mini-video');
+    icons = document.getElementById('icons');
+    showSpinner(localVideo, remoteVideo);
+
+    from = message.from;
 		var options = {
 			localVideo : localVideo,
 			remoteVideo : remoteVideo,
 			onicecandidate : onIceCandidate,
 			onerror : onError
 		}
-                
-        options.configuration  = configuration;
+
+    options.configuration  = configuration;
 		webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
-				function(error) {
-					if (error) {
-						return console.error(error);
-					}
-					webRtcPeer.generateOffer(onOfferIncomingCall);
-                });
+		function(error) {
+			if (error) {
+				return console.error(error);
+			}
+			webRtcPeer.generateOffer(onOfferIncomingCall);
+    });
 
 	} else {
 		var response = {
@@ -298,16 +298,13 @@ function incomingCall(message) {
 }
 
 function muteMicrophone() {
-	
-    webRtcPeer.peerConnection.getLocalStreams()[0].getAudioTracks()[0].enabled = isMicroMuted;
+  webRtcPeer.peerConnection.getLocalStreams()[0].getAudioTracks()[0].enabled = isMicroMuted;
  	isMicroMuted = !isMicroMuted;
-
 }
 
 function muteVideo() {
-  
-    webRtcPeer.peerConnection.getLocalStreams()[0].getVideoTracks()[0].enabled = isVideoMuted;
-    isVideoMuted = !isVideoMuted;	
+  webRtcPeer.peerConnection.getLocalStreams()[0].getVideoTracks()[0].enabled = isVideoMuted;
+  isVideoMuted = !isVideoMuted;
 }
 
 function onOfferIncomingCall(error, offerSdp) {
@@ -367,20 +364,20 @@ function call() {
 }
 
 function onOfferCall(error, offerSdp) {
-	
+
 	if (error) {
 		return console.error('Error generating the offer');
 	}
 
 	console.log('Invoking SDP offer callback function : calling:'+myConsultant.name+ ' from:'+from);
-	
+
 	var message = {
 		id : 'call',
                 from: from,
                 to: myConsultant.name,
 		sdpOffer : offerSdp
 	};
-	
+
 	sendMessage(message);
 }
 
@@ -398,7 +395,7 @@ function stop(message) {
 				id : stopMessageId
 			}
 			sendMessage(message);
-		}   
+		}
 	}
 	hideSpinner(localVideo, remoteVideo);
         miniVideo.display = 'block';
@@ -469,7 +466,7 @@ function deactivate(id) {
 
 /**
  * Lightbox utility (to display media pipeline image in a modal dialog)
- 
+
 $(document).delegate('*[data-toggle="lightbox"]', 'click', function(event) {
 	event.preventDefault();
 	$(this).ekkoLightbox();

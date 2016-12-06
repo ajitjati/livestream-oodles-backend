@@ -32,6 +32,8 @@ public class UserSession {
 
   private final String name;
   private final Session session;
+  
+  private String site;
 
   private String sdpOffer;
   private String sdpOfferScreen;
@@ -89,11 +91,11 @@ public class UserSession {
   public void sendMessage(JsonObject message) throws IOException {
     
     if(session.isOpen()){
-        log.debug("Sending message from user '{}': {}", name, message);
+        log.debug("Sending message to user '{}': {}", name, message);
         session.getBasicRemote().sendText(message.toString());
     }
     else 
-        log.debug("session of user '{}' is closed.", name);
+        log.warn("session of user '{}' is closed.", name);
   }
 
   public String getSessionId() {
@@ -144,6 +146,14 @@ public class UserSession {
     public boolean isBusy() {
             return this.webRtcEndpoint != null;
     }
+
+	public String getSite() {
+		return site;
+	}
+
+	public void setSite(String site) {
+		this.site = site;
+	}
 
   
 }
