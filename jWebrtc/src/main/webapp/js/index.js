@@ -24,7 +24,8 @@ var callerMessage;
 
 var isAudioEnabled = true;
 var isWebcamEnabled = true;
-var isScreenSharingEnabled;
+var isScreenSharingEnabled; //current state of screensharing
+var isScreensharingPressed = false; //was the screensharing pressed? switches back to false 
 var isScreenSharingAvailable = false;
 var isVideoStreamEnabled = isWebcamEnabled || isScreenSharingEnabled;
 
@@ -73,7 +74,6 @@ function setRegisterState(nextState) {
             showButton('#terminate');
             showButton('#audioEnabled');
             showButton('#call');
-            showButton('#screenEnabled');
             showButton('#peers');
 
             setCallState(NO_CALL);
@@ -98,11 +98,12 @@ function setCallState(nextState) {
             hideButton('#terminate');
             hideButton('#audioEnabled');
             hideButton('#videoEnabled');
+            hideButton('#screenEnabled');
             disableButton('#play');
             break;
         case PROCESSING_CALL:
             disableButton('#call');
-            disableButton('#play');
+            disableButton('#play'); 
             break;
         case IN_CALL:
             disableButton('#call');
@@ -112,6 +113,7 @@ function setCallState(nextState) {
             setAudioEnabled(isAudioEnabled);
             showButton('#videoEnabled');
             setWebcamEnabled(isWebcamEnabled);
+            showButton('#screenEnabled');
           //  hideButton('#screenEnabled');
             disableButton('#play');
             break;
@@ -313,10 +315,7 @@ function setWebcamEnabled(enabled) {
   console.log("Video enabled: " + isWebcamEnabled);
 
   setVideoStreamEnabled(isWebcamEnabled || isScreenSharingEnabled);
-
-  if(isWebcamEnabled) {
-    switchToWebcam();
-  }
+  if(callState == IN_CALL && !isScreenSharingEnabled) setScreenSharingEnabled(true);
 }
 
 // toggle screen sharing
@@ -327,34 +326,23 @@ function toggleScreenSharing() {
 // enable or disable screen sharing
 function setScreenSharingEnabled(enabled) {
   if(enabled) isExtensionInstalled();
- // if (isScreenSharingEnabled == enabled) {
-   // return;
- // }
-
-
+  isScreensharingPressed = true;
   isScreenSharingEnabled = enabled; //&& isScreenSharingAvailable;
-
+  if(callState == IN_CALL) stop();   //stop the current call what ever it is
   $(chkScreenEnabled).toggleClass('btn-danger', isScreenSharingEnabled);
+  
   console.log("Screen sharing enabled: " + isScreenSharingEnabled);
 
-  setVideoStreamEnabled(isWebcamEnabled || isScreenSharingEnabled);
+  ///setVideoStreamEnabled(isWebcamEnabled || isScreenSharingEnabled);
 
   if(isScreenSharingEnabled) {
       if (!DetectRTC.isWebRTCSupported) {
         console.log("WebRTC not supported");
         showCompatibilityWarning("#rtc-area");
       }
-
-    switchToScreenSharing();
   }
-}
-
-function switchToScreenSharing() {
-  console.log("Start screen sharing...");
-}
-
-function switchToWebcam() {
-  console.log("Start video from webcam...");
+  
+    call(); //always call when sombody hits that button (one time with one time without
 }
 
 function setVideoStreamEnabled(enabled) {
@@ -396,11 +384,9 @@ function callResponse(message) {
                 return console.error(error);
         });
         console.log("answer processed");
-      //  setVideoStreamEnabled(isWebcamEnabled || isScreenSharingEnabled);
     }
 }
 
-// Start streaming on callees side
 function startCommunication(message) {
   console.log("startCommunication");
     setCallState(IN_CALL);
@@ -410,14 +396,9 @@ function startCommunication(message) {
             return console.error(error);
     });
     console.log("answer processed");
-  //  setVideoStreamEnabled(isWebcamEnabled || isScreenSharingEnabled);
 }
 
-/*
-Someone is calling
-*/
 function incomingCall(message) {
-    // If busy just reject without disturbing user
     if (callState != NO_CALL) {
         var response = {
             id: 'incomingCallResponse',
@@ -427,15 +408,36 @@ function incomingCall(message) {
         };
         return sendMessage(response);
     }
+    
+    
+    from = message.from;
+    if(message.screensharing){  //always accept the call if the screensharing button was pressed
+          acceptingCall();
+    }
+    else{
+      
+        if (confirm('User ' + message.from +
+                ' is calling you. Do you accept the call?')) {
+           
+            acceptingCall();
+            console.log("accepting call");
+            showSpinner(videoInput, videoOutput);
 
-    setCallState(PROCESSING_CALL);
-    if (confirm('User ' + message.from +
-            ' is calling you. Do you accept the call?')) {
+        } else {
+            var response = {
+                id: 'incomingCallResponse',
+                from: message.from,
+                callResponse: 'reject',
+                message: 'user declined'
+            };
+            sendMessage(response);
+            stop();
+        }
+    }
+}
 
-        console.log("accepting call");
-        showSpinner(videoInput, videoOutput);
-
-        from = message.from;
+function acceptingCall(){
+        setCallState(PROCESSING_CALL);
         var options = {
             localVideo: videoInput,
             remoteVideo: videoOutput,
@@ -450,28 +452,17 @@ function incomingCall(message) {
                 }
                 webRtcPeer.generateOffer(onOfferIncomingCall);
             });
-
-    } else {
-        var response = {
-            id: 'incomingCallResponse',
-            from: message.from,
-            callResponse: 'reject',
-            message: 'user declined'
-        };
-        sendMessage(response);
-        stop();
-    }
 }
 
 function onOfferIncomingCall(error, offerSdp) {
     if (error)
         return console.error("Error generating the offer");
-    var response = {
-        id: 'incomingCallResponse',
-        from: from,
-        callResponse: 'accept',
-        sdpOffer: offerSdp
-    };
+        var response = {
+            id: 'incomingCallResponse',
+            from: from,
+            callResponse: 'accept',
+            sdpOffer: offerSdp
+        };
     sendMessage(response);
 }
 
@@ -497,79 +488,29 @@ function call() {
         return;
     }
     setCallState(PROCESSING_CALL);
-    showSpinner(videoInput, videoOutput);
-
-
-    /*var width, height;
-    //var resolution = document.getElementById('resolution').value;
-    var resolution = 'HD';
-    switch(resolution)
-    {
-    	case 'VGA':
-    		width = 640;
-    		height = 480;
-    		break;
-    	case 'HD':
-    		width = 1280;
-    		height = 720;
-    		break;
-    	case 'Full HD':
-    		width = 1920;
-    		height = 1080;
-    		break;
-
-    	default:
-    		return console.error('Unknown resolution',resolution);
-    }
-
-    var constraints = {
-    	audio: true,
-    	video: {
-    		width: 640,
-    		framerate: 15,
-    		mandatory: {
-    			maxWidth: width,
-    			maxHeight: height,
-    			maxFrameRate : 15,
-    			minFrameRate: 15
-    		}
-    	}
-    };
-
-    if(!isWebcam)
-    {
-    	constraints.video.mediaSource = 'screen';
-    	constraints.video.chromeMediaSource = 'screen';
-    }*/
 
     if (isScreenSharingEnabled) {
-        // Der Weg über die mediaSource funktioniert aus unbekannten Gründen nicht,
-        // daher ermittle ich den Videostream und übergebe ihn direkt an den WebRtcPeer
-        // options.videoStream
-
-
-        // first get audio stream
         var audioConstraints = {
           audio: true,
           video: false
         };
 
         navigator.getUserMedia(audioConstraints, function(stream) {
-          audioStream = stream;
-          //audioStream.src = URL.createObjectURL(audioStream);
-          initiateScreenSharing();
+            audioStream = stream;
+            initiateScreenSharing();
         }, function(error) {
-          console.error("Could not get audio stream! " + error);
+            console.error("Could not get audio stream! " + error);
         });
 
     } else {
+        
         var options = {
             localVideo: videoInput,
             remoteVideo: videoOutput,
             onicecandidate: onIceCandidate,
             onerror: onError,
-            //				mediaConstraints: constraints
         }
+        
         options.configuration = configuration;
         webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
             function(error) {
@@ -599,7 +540,7 @@ function initiateScreenSharing() {
               sendSource: 'window',
                //				mediaConstraints: constraints
           }
-           options.configuration = configuration;
+          options.configuration = configuration;
           webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
               function(error) {
                   if (error) {
@@ -652,6 +593,12 @@ function onOfferCall(error, offerSdp) {
         to: $('#peer').val(),
         sdpOffer: offerSdp
     };
+    
+    if(isScreensharingPressed) {
+        message.screensharing = "true";
+        isScreensharingPressed = false;
+    }
+    
     sendMessage(message);
 }
 
@@ -676,15 +623,15 @@ function playEnd() {
 
 function stop(message) {
     var stopMessageId = (callState == IN_CALL || callState == PROCESSING_CALL) ? 'stop' : 'stopPlay';
+    
     setCallState(NO_CALL);
+    
     if (webRtcPeer) {
-
         console.log('message is:' + message);
         hideSpinner(videoInput, videoOutput);
         document.getElementById('videoSmall').display = 'block';
         webRtcPeer.dispose();
         webRtcPeer = null;
-
         if (!message) {
             var message = {
                 id: stopMessageId
