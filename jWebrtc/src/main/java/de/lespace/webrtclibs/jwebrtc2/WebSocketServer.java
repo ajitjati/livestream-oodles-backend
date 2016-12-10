@@ -101,7 +101,7 @@ public class WebSocketServer {
 		}
                 
 		try {
-			stop(session);
+			stop(session,false);
                         String sessionId = session.getId();
                         killUserSession(session);
 		} catch (IOException ex) {
@@ -201,12 +201,31 @@ public class WebSocketServer {
 		case "stop":
 			try {
                                 log.error("received stop closing media piplines");
-				stop(session);
+				stop(session,jsonMessage.has("callback"));
                                 printCurrentUsage();
                             } catch (IOException ex) {
 				log.error(ex.getLocalizedMessage(), ex);
-			}
+                            }
 			break;
+                case "callback":
+                        
+                        String from = userSession.getCallingFrom();
+                        String to =  userSession.getCallingTo();
+                        String myName = userSession.getName();
+                       
+                        JsonObject callBackMessage = new JsonObject();
+                        callBackMessage.addProperty("id", "callback");
+                        try {
+                            if(myName.equals(from)){
+                                registry.getByName(to).sendMessage(callBackMessage);
+                            }else{
+                                registry.getByName(from).sendMessage(callBackMessage);
+                            }
+                        } catch (IOException ex) {
+				log.error(ex.getLocalizedMessage(), ex);
+                        }
+                
+			break;        
                 case "checkOnlineStatus":
 			try {
 				queryOnlineStatus(session, jsonMessage);
@@ -356,7 +375,7 @@ public class WebSocketServer {
 
 	private void handleErrorResponse(Exception throwable, Session session, String responseId) {
 		try {
-			stop(session);
+			stop(session,false);
 		} catch (IOException ex) {
 			log.error(ex.getLocalizedMessage(), ex);
 		}
@@ -695,7 +714,7 @@ public class WebSocketServer {
             sendRegisteredUsers(); 
         }
         
-	public void stop(Session session) throws IOException {
+	public void stop(Session session, boolean sendCallback) throws IOException {
 
 		String sessionId = session.getId();
                 log.debug("trying to find session id: {} in piplines:\n{}",sessionId,pipelines.keySet().toString());
@@ -704,7 +723,7 @@ public class WebSocketServer {
                 // Both users can stop the communication. A 'stopCommunication'
                 // message will be sent to the other peer.
                 UserSession stopperUser = registry.getBySession(session);
-                log.error("stopperUser: "+stopperUser.getName());
+                log.info("stopperUser: "+stopperUser.getName());
 
                 if (stopperUser != null) {
 
@@ -719,6 +738,7 @@ public class WebSocketServer {
                         stopUser = stoppedUserFrom;
                         JsonObject message = new JsonObject();
                         message.addProperty("id", "stopCommunication");
+                        if(sendCallback==true) message.addProperty("callback", "true");
                         stopUser.sendMessage(message);
                         stopUser.clear();                       
                     }      
@@ -728,6 +748,7 @@ public class WebSocketServer {
                        stopUser = stoppedUserTo;
                        JsonObject message = new JsonObject();
                        message.addProperty("id", "stopCommunication");
+                       if(sendCallback==true) message.addProperty("callback", "true");
                        stopUser.sendMessage(message);
                        stopUser.clear();                  
                    }

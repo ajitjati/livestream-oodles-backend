@@ -16,6 +16,7 @@
  */
 
 var ws = new WebSocket('wss://' + location.host + '/jWebrtc/ws');
+var doLog = true;
 var videoInput;
 var videoOutput;
 var webRtcPeer;
@@ -49,7 +50,7 @@ var configuration = {
         "credential": "fondkonzept"
     }]
 };
-
+var callbackqueue = [];
 var registerName = null;
 var registerState = null;
 const NOT_REGISTERED = 0;
@@ -107,7 +108,7 @@ function setCallState(nextState) {
             break;
         case IN_CALL:
             disableButton('#call');
-            enableButton('#terminate', 'stop()');
+            enableButton('#terminate', 'terminate()');
             showButton('#terminate');
             showButton('#audioEnabled');
             setAudioEnabled(isAudioEnabled);
@@ -119,7 +120,7 @@ function setCallState(nextState) {
             break;
         case IN_PLAY:
             disableButton('#call');
-            enableButton('#terminate', 'stop()');
+            enableButton('#terminate', 'terminate()');
             disableButton('#play');
             break;
         default:
@@ -128,8 +129,12 @@ function setCallState(nextState) {
     callState = nextState;
 }
 
+function log(message){
+    if(doLog) console.log(message);
+}
+
 window.onload = function() {
-  console = new Console();
+  if(doLog) console = new Console();
   setRegisterState(NOT_REGISTERED);
   var drag = new Draggabilly(document.getElementById('videoSmall'));
   videoInput = document.getElementById('videoInput');
@@ -137,7 +142,7 @@ window.onload = function() {
 
   document.getElementById('name').focus();
   ws.onopen = function() {
-      console.log("ws connection now open");
+      log("ws connection now open");
       requestAppConfig();
   }
 }
@@ -171,7 +176,7 @@ window.onbeforeunload = function() {
 
 ws.onmessage = function(message) {
     var parsedMessage = JSON.parse(message.data);
-    console.info('Received message: ' + message.data);
+    log('Received message: ' + message.data);
 
     if (parsedMessage.params) {
         readAppConfig(parsedMessage);
@@ -193,8 +198,24 @@ ws.onmessage = function(message) {
                 startCommunication(parsedMessage);
                 break;
             case 'stopCommunication':
-                console.info('Communication ended by remote peer');
-                stop(true);
+                log('Communication ended by remote peer');
+                
+                stop(true,false); //message came from peer (true) we don't need a callback (false)
+                
+                if(parsedMessage.callback){
+                
+                    var message = {
+                            id: "callback"
+                    };
+                    sendMessage(message);
+                }
+                
+                break;
+            case 'callback':
+                log('starting functions in callbackqueu - e.g. screensharing')
+                while (callbackqueue.length > 0) {
+                    (callbackqueue.shift())();   
+                }
                 break;
             case 'iceCandidate':
                 webRtcPeer.addIceCandidate(parsedMessage.candidate, function(error) {
@@ -218,7 +239,7 @@ ws.onmessage = function(message) {
 }
 
 function requestAppConfig() {
-    console.log('requesting app config');
+    log('requesting app config');
     var message = {
         id: 'appConfig',
         type: 'browser'
@@ -244,18 +265,18 @@ function readAppConfig(message) {
 function registerResponse(message) {
     if (message.response == 'accepted') {
         setRegisterState(REGISTERED);
-        console.log(message.message);
+        log(message.message);
     } else {
         setRegisterState(NOT_REGISTERED);
         var errorMessage = message.message ? message.message :
             'Unknown reason for register rejection.';
-        console.log(errorMessage);
+        log(errorMessage);
         alert('Error registering user. See console for further information.');
     }
 }
 
 function updateRegisteredUsers(userList) {
-    console.log("User list: " + userList);
+    log("User list: " + userList);
     var peers = $("#peer").find('option').remove().end();
     var name;
     for (var i = 0; i < userList.length; i++) {
@@ -277,11 +298,11 @@ function setAudioEnabled(enabled) {
   isAudioEnabled = enabled;
   if (webRtcPeer != undefined) {
     var localStreams = webRtcPeer.peerConnection.getLocalStreams();
-    console.log(localStreams.length + " local streams");
+    log(localStreams.length + " local streams");
     localStreams.forEach(function(localStream, index, array) {
       var audioTracks = localStream.getAudioTracks();
 
-      console.log(audioTracks.length + " audio tracks");
+      log(audioTracks.length + " audio tracks");
 
       // if MediaStream has reference to microphone
       if (audioTracks[0]) {
@@ -298,7 +319,7 @@ function setAudioEnabled(enabled) {
   $(chkAudioEnabled).toggleClass('active', isAudioEnabled);
   $(chkAudioEnabled).toggleClass('focus', false);
 
-  console.log("Audio enabled: " + isAudioEnabled);
+  log("Audio enabled: " + isAudioEnabled);
 }
 
 // toggle video stream
@@ -312,7 +333,7 @@ function setWebcamEnabled(enabled) {
 
   $(chkWebcamEnabled).toggleClass('active', isWebcamEnabled);
 
-  console.log("Video enabled: " + isWebcamEnabled);
+  log("Video enabled: " + isWebcamEnabled);
 
   setVideoStreamEnabled(isWebcamEnabled || isScreenSharingEnabled);
   if(callState == IN_CALL && !isScreenSharingEnabled) setScreenSharingEnabled(true);
@@ -328,16 +349,14 @@ function setScreenSharingEnabled(enabled) {
   if(enabled) isExtensionInstalled();
   isScreensharingPressed = true;
   isScreenSharingEnabled = enabled; //&& isScreenSharingAvailable;
-  if(callState == IN_CALL) stop();   //stop the current call what ever it is
+
   $(chkScreenEnabled).toggleClass('btn-danger', isScreenSharingEnabled);
   
-  console.log("Screen sharing enabled: " + isScreenSharingEnabled);
-
-  ///setVideoStreamEnabled(isWebcamEnabled || isScreenSharingEnabled);
+  log("Screen sharing enabled: " + isScreenSharingEnabled);
 
   if(isScreenSharingEnabled) {
       if (!DetectRTC.isWebRTCSupported) {
-        console.log("WebRTC not supported");
+        log("WebRTC not supported");
         showCompatibilityWarning("#rtc-area");
       }
   }
@@ -371,31 +390,31 @@ function playResponse(message) {
 // Start streaming on callers side, if accepted
 function callResponse(message) {
     if (message.response != 'accepted') {
-        console.info('Call not accepted by peer. Closing call');
+        log('Call not accepted by peer. Closing call');
         var errorMessage = message.message ? message.message :
             'Unknown reason for call rejection.';
-        console.log(errorMessage);
-        stop();
+        log(errorMessage);
+        stop(false,false);
     } else {
-      console.log("call accepted");
+      log("call accepted");
         setCallState(IN_CALL);
         webRtcPeer.processAnswer(message.sdpAnswer, function(error) {
             if (error)
                 return console.error(error);
         });
-        console.log("answer processed");
+        log("answer processed");
     }
 }
 
 function startCommunication(message) {
-  console.log("startCommunication");
+  log("startCommunication");
     setCallState(IN_CALL);
 
     webRtcPeer.processAnswer(message.sdpAnswer, function(error) {
         if (error)
             return console.error(error);
     });
-    console.log("answer processed");
+    log("answer processed");
 }
 
 function incomingCall(message) {
@@ -420,7 +439,7 @@ function incomingCall(message) {
                 ' is calling you. Do you accept the call?')) {
            
             acceptingCall();
-            console.log("accepting call");
+            log("accepting call");
             showSpinner(videoInput, videoOutput);
 
         } else {
@@ -431,7 +450,7 @@ function incomingCall(message) {
                 message: 'user declined'
             };
             sendMessage(response);
-            stop();
+            stop(false,false);
         }
     }
 }
@@ -481,13 +500,36 @@ function register() {
     sendMessage(message);
     document.getElementById('peer').focus();
 }
+// Function wrapping code.
+// fn - reference to function.
+// context - what you want "this" to be.
+// params - array of parameters to pass to function.
+var wrapFunction = function(fn, context, params) {
+    return function() {
+        fn.apply(context, params);
+    };
+}
+
+var newCall = function(options){
+    setCallState(PROCESSING_CALL);
+    webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
+    function(error) {
+        if (error) {
+            return console.error(error);
+        }
+        webRtcPeer.generateOffer(onOfferCall);
+    });
+};
 
 function call() {
+    
     if (document.getElementById('peer').value == '') {
         window.alert('You must specify the peer name');
         return;
     }
-    setCallState(PROCESSING_CALL);
+    
+    showSpinner();
+   
 
     if (isScreenSharingEnabled) {
         var audioConstraints = {
@@ -503,7 +545,6 @@ function call() {
         });
 
     } else {
-        
         var options = {
             localVideo: videoInput,
             remoteVideo: videoOutput,
@@ -512,14 +553,13 @@ function call() {
         }
         
         options.configuration = configuration;
-        webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
-            function(error) {
-                if (error) {
-                    return console.error(error);
-                }
-                webRtcPeer.generateOffer(onOfferCall);
-            });
+        
+        var newCallWrap = wrapFunction(newCall, this, [options]);
+        
+        if(callState == IN_CALL) stop(false,newCallWrap);   //stop the current call what ever it is false: no peer was stopping it - true means we want a callback
+        else newCall(options);
     }
+   
 }
 
 function initiateScreenSharing() {
@@ -541,13 +581,18 @@ function initiateScreenSharing() {
                //				mediaConstraints: constraints
           }
           options.configuration = configuration;
-          webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
+          
+          var newCallWrap = wrapFunction(newCall, this, [options]);
+          
+          if(callState == IN_CALL) stop(false,newCallWrap);   //stop the current call what ever it is
+          else newCall(options);
+        /*  webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
               function(error) {
                   if (error) {
                       return console.error(error);
                   }
                   webRtcPeer.generateOffer(onOfferCall);
-              });
+              });*/
 
       }, function(error) {
           console.error(error);
@@ -555,38 +600,11 @@ function initiateScreenSharing() {
   });
 }
 
-function play() {
-    var peer = document.getElementById('peer').value;
-    if (peer == '') {
-        window.alert('You must specify the peer name');
-        document.getElementById('peer').focus;
-        return;
-    }
-
-    document.getElementById('videoSmall').display = 'none';
-    setCallState(IN_PLAY);
-    showSpinner(videoOutput);
-
-    var options = {
-        remoteVideo: videoOutput,
-        onicecandidate: onIceCandidate
-    }
-    webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options,
-        function(error) {
-            if (error) {
-                return console.error(error);
-            }
-            this.generateOffer(onOfferPlay);
-        }
-    )
-
-}
-
 function onOfferCall(error, offerSdp) {
     if (error) {
         return console.error('Error generating the offer');
     }
-    console.log('Invoking SDP offer callback function');
+    log('Invoking SDP offer callback function');
     var message = {
         id: 'call',
         from: document.getElementById('name').value,
@@ -606,7 +624,7 @@ function onOfferPlay(error, offerSdp) {
     if (error) {
         return console.error('Error generating the offer');
     }
-    console.log('Invoking SDP offer callback function');
+    log('Invoking SDP offer callback function');
     var message = {
         id: 'play',
         user: document.getElementById('peer').value,
@@ -620,22 +638,32 @@ function playEnd() {
     hideSpinner(videoInput, videoOutput);
     document.getElementById('videoSmall').style.display = 'block';
 }
+function terminate(){
+    isScreenSharingEnabled = false;
+    stop(null,false);
+}
 
-function stop(message) {
+
+function stop(message, callback) {
     var stopMessageId = (callState == IN_CALL || callState == PROCESSING_CALL) ? 'stop' : 'stopPlay';
     
     setCallState(NO_CALL);
-    
+    if(callback) callbackqueue.push(callback);
+
     if (webRtcPeer) {
-        console.log('message is:' + message);
+        log('message is:' + message);
         hideSpinner(videoInput, videoOutput);
         document.getElementById('videoSmall').display = 'block';
         webRtcPeer.dispose();
         webRtcPeer = null;
-        if (!message) {
+        
+       // isScreenSharingEnabled=false; //don't do that here... only when stop was really pressed locally
+        if (!message) { //we send a message to the peer if we stop the connection
             var message = {
                 id: stopMessageId
-            }
+            };
+            if(callback) message.callback = true;
+            
             sendMessage(message);
         }
     }
@@ -656,7 +684,7 @@ function onIceCandidate(candidate) {
 
 function sendMessage(message) {
     var jsonMessage = JSON.stringify(message);
-    console.log('Sending message: ' + jsonMessage);
+    log('Sending message: ' + jsonMessage);
     ws.send(jsonMessage);
 }
 
@@ -709,7 +737,7 @@ function isExtensionInstalled() {
   if (DetectRTC.browser.isChrome) {
     // Check for chrome extension
     getChromeExtensionStatus(function(status) {
-      console.info("Chrome extension: " + status);
+      log("Chrome extension: " + status);
 
         if(status == 'installed') {
           // chrome extension is installed.
@@ -755,8 +783,8 @@ function isExtensionInstalled() {
 
         if(addonMessage.enabledScreenCapturing === true) {
             // addonMessage.domains === [array-of-your-domains]
-            console.info("Firefox AddOn available");
-            console.log(JSON.stringify(addonMessage.domains) + ' are enabled for screen capturing.');
+            log("Firefox AddOn available");
+            log(JSON.stringify(addonMessage.domains) + ' are enabled for screen capturing.');
             $("#warningScreenSharingFirefox").hide();
             handleScreenSharingAvailable();
         }
@@ -842,3 +870,32 @@ function getChromeExtensionStatus(callback) {
       callback('not-installed');
     });
 }
+
+
+function play() {
+    var peer = document.getElementById('peer').value;
+    if (peer == '') {
+        window.alert('You must specify the peer name');
+        document.getElementById('peer').focus;
+        return;
+    }
+
+    document.getElementById('videoSmall').display = 'none';
+    setCallState(IN_PLAY);
+    showSpinner(videoOutput);
+
+    var options = {
+        remoteVideo: videoOutput,
+        onicecandidate: onIceCandidate
+    }
+    webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options,
+        function(error) {
+            if (error) {
+                return console.error(error);
+            }
+            this.generateOffer(onOfferPlay);
+        }
+    )
+
+}
+
