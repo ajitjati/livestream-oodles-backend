@@ -35,12 +35,19 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 ##Configuration:
 1. Turn-Server:
 	- config under: /etc/turnserver.conf   
-	- username/password for client auth 
+	- username/password for client auth
+	- enable/disable logging in /etc/init.d/rfc5766-turn-server
+		remove --log-file /dev/null --no-stdout-log in DAEMON_ARGS  
 	- logs under /var/log
 2. Kurento-Server:
 	- config under /etc/kurento/kurento.conf.json
 	- configure modules/kurento/WebRtcEndpoint.conf.ini (stun and turn server)
 	- configure modules/kurento/UriEndpoint.conf.ini defaultPath = file:///var/kurento/
+	- configure logging and log level in /etc/default/kurento-media-server 
+		export KURENTO_LOGS_PATH=$DAEMON_LOG
+		export KURENTO_LOG_FILE_SIZE=300
+		export KURENTO_NUMBER_LOG_FILES=20
+		export GST_DEBUG=1,Kurento*:1
 	- logs under /var/log/kurento/
 	- recorded webrtc video/audio under /var/kurento
 3. Tomcat 
@@ -91,8 +98,13 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 - add 3 buttons (video, audio, screensharing to status.html (support widget)
 
 
-###Nice2Haves
-- show splash for microphone, video, microphone permission
+###Improvements / Nice2Haves
+- (P1) Tomcat does not create nice session IDs for the websockts - use HTTP-SessionId? SecurityProblem? 
+- show splash for microphone, video, microphone permission 
+	- explain it for chrome 
+	- explain "always allow" for firefox
+	- if user denies permission display message http://stackoverflow.com/questions/15993581/reprompt-for-permissions-with-getusermedia-after-initial-denial
+- install firefox-screensharing plugin so permission-request is not always popping up
 - choose audio, video devices in browser https://webrtc.github.io/samples/src/content/devices/input-output/
 	https://webrtc.github.io/samples/
 - display message for non-webrtc-browser instead of displaying call buttons
@@ -114,24 +126,10 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 	- change Turn-Authentication with every appConfig call
   
 ###Bugs
-- (P1) Strange Execption on production server, causes complete server crash?!
-		java.io.EOFException
-        at org.apache.tomcat.util.net.NioEndpoint$NioSocketWrapper.fillReadBuffer(NioEndpoint.java:1222)
-        at org.apache.tomcat.util.net.NioEndpoint$NioSocketWrapper.isReadyForRead(NioEndpoint.java:1128)
-        at org.apache.tomcat.websocket.server.WsFrameServer.onDataAvailable(WsFrameServer.java:58)
-        at org.apache.tomcat.websocket.server.WsHttpUpgradeHandler.upgradeDispatch(WsHttpUpgradeHandler.java:148)
-        at org.apache.coyote.http11.upgrade.UpgradeProcessorInternal.dispatch(UpgradeProcessorInternal.java:54)
-        at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:53)
-        at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:785)
-        at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1425)
-        at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:49)
-        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142)
-        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617)
-        at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
-        at java.lang.Thread.run(Thread.java:745)
-- (P1) Tomcat does not create nice session IDs for the websockts - use HTTP-SessionId? SecurityProblem? 
 
 ###Done
+- 2016-12-15 - fixed bug of video button which switched to screensharing during a active call 
+- 2016-12-01 - implemented screensharing on same screen
 - 2016-10-31 - screensharing chrome tries to load a localhost url into iframe - needs to be the current server if possible.
 
 - 2016-10-31 - enable screensharing

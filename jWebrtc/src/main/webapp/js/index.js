@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-
+console.log('version 0.5.2 built time: 13.12.2016 16:56');
 var ws = new WebSocket('wss://' + location.host + '/jWebrtc/ws');
-var doLog = true;
+var doLog = false;
 var videoInput;
 var videoOutput;
 var webRtcPeer;
@@ -37,6 +37,7 @@ var chkScreenEnabled;
 var audioStream;
 
 var from;
+var to;
 var myConsultant = {
     name: '',
     status: ''
@@ -96,6 +97,7 @@ function setCallState(nextState) {
         case NO_CALL:
             enableButton('#call', 'call()');
             disableButton('#terminate');
+            enableButton('#peer', null);
             hideButton('#terminate');
             hideButton('#audioEnabled');
             hideButton('#videoEnabled');
@@ -108,6 +110,7 @@ function setCallState(nextState) {
             break;
         case IN_CALL:
             disableButton('#call');
+            disableButton('#peer');
             enableButton('#terminate', 'terminate()');
             showButton('#terminate');
             showButton('#audioEnabled');
@@ -145,6 +148,7 @@ window.onload = function() {
       log("ws connection now open");
       requestAppConfig();
   }
+  isExtensionInstalled();
 }
 
 $(function() {
@@ -286,6 +290,7 @@ function updateRegisteredUsers(userList) {
             peers.append($("<option />").val(name).text(name));
         }
     }
+    $('#peer option:contains('+to+')').prop('selected', true);
 }
 
 // toggle audio stream
@@ -336,7 +341,7 @@ function setWebcamEnabled(enabled) {
   log("Video enabled: " + isWebcamEnabled);
 
   setVideoStreamEnabled(isWebcamEnabled || isScreenSharingEnabled);
-  if(callState == IN_CALL && !isScreenSharingEnabled) setScreenSharingEnabled(true);
+ // if(callState == IN_CALL && !isScreenSharingEnabled) setScreenSharingEnabled(true);
 }
 
 // toggle screen sharing
@@ -346,7 +351,7 @@ function toggleScreenSharing() {
 
 // enable or disable screen sharing
 function setScreenSharingEnabled(enabled) {
-  if(enabled) isExtensionInstalled();
+ 
   isScreensharingPressed = true;
   isScreenSharingEnabled = enabled; //&& isScreenSharingAvailable;
 
@@ -527,6 +532,9 @@ function call() {
         window.alert('You must specify the peer name');
         return;
     }
+    else{
+        to = document.getElementById('peer').value;
+    }
     
     showSpinner();
    
@@ -608,7 +616,7 @@ function onOfferCall(error, offerSdp) {
     var message = {
         id: 'call',
         from: document.getElementById('name').value,
-        to: $('#peer').val(),
+        to: to, //$('#peer').val()
         sdpOffer: offerSdp
     };
     
@@ -717,7 +725,7 @@ function disableButton(id) {
 
 function enableButton(id, functionName) {
     $(id).attr('disabled', false);
-    $(id).attr('onclick', functionName);
+    if(functionName)$(id).attr('onclick', functionName);
     $(id).toggleClass("disabled", false);
 }
 
@@ -762,6 +770,7 @@ function isExtensionInstalled() {
   }
 
   if (DetectRTC.browser.isFirefox) {
+      
     // Check for firefox add on
     // request addon to enable screen capturing for your domains
     window.postMessage({
@@ -769,9 +778,11 @@ function isExtensionInstalled() {
         domains: ['localhost', '127.0.0.1','*.a-fk.de', '*.le-space.de', '*.nicokrause.com']
     }, "*");
 
+   
     // watch addon's response
     // addon will return "enabledScreenCapturing=true" for success
     // else "enabledScreenCapturing=false" for failure (i.e. user rejection)
+ 
     window.addEventListener("message", function(event) {
         var addonMessage = event.data;
 
@@ -793,7 +804,7 @@ function isExtensionInstalled() {
             console.warn("Firefox AddOn: " + addonMessage.reason);
             handleMissingFirefoxAddon();
         }
-    }, false);
+    }, false); 
   }
 
   return false;
