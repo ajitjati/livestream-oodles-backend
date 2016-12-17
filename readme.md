@@ -131,6 +131,7 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 
 
 ###Done
+- 2016-12-17 - send registered users without own user to peers.
 - 2016-12-17 - Screensharing - when phone is calling browser - screensharing does not activate on mobile
 	- is only appearing om tomcat - session is closed
 - 2016-12-15 - fixed bug of video button which switched to screensharing during a active call 

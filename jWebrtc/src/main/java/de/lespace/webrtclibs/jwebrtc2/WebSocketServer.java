@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
@@ -541,17 +542,20 @@ public class WebSocketServer {
 	 */
 	private void sendRegisteredUsers() throws IOException {
 		List<String> userList = registry.getRegisteredUsers();
-		String userListJson = new Gson().toJson(userList);
-
-		JsonObject responseJSON = new JsonObject();
-		responseJSON.addProperty("id", "registeredUsers");
-		responseJSON.addProperty("response", userListJson);
-		responseJSON.addProperty("message", "");
-
-		log.error("Updating user list on clients: {}", responseJSON);
-
+               
 		for (UserSession userSession : registry.getUserSessions()) {
                        if(userSession.getSession().isOpen()){
+                           
+                            ArrayList thisUserList = new ArrayList();
+                            thisUserList.addAll(userList);
+                            thisUserList.remove(userSession.getName()); //don't send own username
+                            String userListJson = new Gson().toJson(thisUserList);
+
+                            JsonObject responseJSON = new JsonObject();
+                            responseJSON.addProperty("id", "registeredUsers");
+                            responseJSON.addProperty("response", userListJson);
+                            responseJSON.addProperty("message", "");
+                            log.error("sending userlist: {}",responseJSON.toString());
                             userSession.sendMessage(responseJSON);
                        }else{
                            log.info("removing session id from registry because it's not open {}", userSession.getSession());
@@ -719,6 +723,7 @@ public class WebSocketServer {
             String sessionId = session.getId();
             log.debug("Killing usersession from of websocket id [{}]", sessionId);
             registry.removeBySession(session);
+            
             sendRegisteredUsers(); 
         }
         
