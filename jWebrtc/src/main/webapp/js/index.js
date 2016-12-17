@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-console.log('version 0.5.3 built time: 16.12.2016 12:52');
+console.log('version 0.5.3 built time: 17.12.2016 2:14');
 var ws = new WebSocket('wss://' + location.host + '/jWebrtc/ws');
-var doLog = true;
+var doLog = false;
 var videoInput;
 var videoOutput;
 var webRtcPeer;

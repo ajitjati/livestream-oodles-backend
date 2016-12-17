@@ -126,10 +126,13 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 	- change Turn-Authentication with every appConfig call
   
 ###Bugs
-- Screensharing - when phone is calling browser - screensharing does not activate on mobile
-	- is only appearing om tomcat - session is closed
+- Screensharing Extension: Installation Firefox - no addon installed 5 yellow icons displayed - reload necessary
+- Screensharing Extension: Installation Chrome - direct installation not possible if not registered - reload necessary
+
 
 ###Done
+- 2016-12-17 - Screensharing - when phone is calling browser - screensharing does not activate on mobile
+	- is only appearing om tomcat - session is closed
 - 2016-12-15 - fixed bug of video button which switched to screensharing during a active call 
 - 2016-12-01 - implemented screensharing on same screen
 - 2016-10-31 - screensharing chrome tries to load a localhost url into iframe - needs to be the current server if possible.

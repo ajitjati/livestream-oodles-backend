@@ -47,6 +47,7 @@ public class WebSocketServer {
         private static final Logger log = LoggerFactory.getLogger(WebSocketServer.class);
         
         private void printCurrentUsage(){
+            try{
                 Enumeration<MediaPipeline> e = pipelines.elements();
                 
                 log.error("current pipelines size():"+pipelines.size());
@@ -64,6 +65,9 @@ public class WebSocketServer {
                     UserSession us = i.next();
                     if(us!=null) log.error("current user:"+us.getName()+" -  "+us.getSessionId());
                 }
+             }catch(Exception ex){
+                         log.error("General printCurrentUsage Error:"+ex.getMessage());
+             }
         }
 	@OnOpen
 	public void onOpen(Session session) {
