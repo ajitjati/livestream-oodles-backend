@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-console.log('version 0.5.2 built time: 13.12.2016 16:56');
+console.log('version 0.5.3 built time: 16.12.2016 12:52');
 var ws = new WebSocket('wss://' + location.host + '/jWebrtc/ws');
-var doLog = false;
+var doLog = true;
 var videoInput;
 var videoOutput;
 var webRtcPeer;
@@ -435,6 +435,7 @@ function incomingCall(message) {
     
     
     from = message.from;
+    $('#peer option:contains('+from+')').prop('selected', true);
     if(message.screensharing){  //always accept the call if the screensharing button was pressed
           acceptingCall();
     }
@@ -656,16 +657,12 @@ function stop(message, callback) {
     var stopMessageId = (callState == IN_CALL || callState == PROCESSING_CALL) ? 'stop' : 'stopPlay';
     
     setCallState(NO_CALL);
-    if(callback) callbackqueue.push(callback);
+    
 
     if (webRtcPeer) {
-        log('message is:' + message);
-        hideSpinner(videoInput, videoOutput);
-        document.getElementById('videoSmall').display = 'block';
-        webRtcPeer.dispose();
-        webRtcPeer = null;
         
-       // isScreenSharingEnabled=false; //don't do that here... only when stop was really pressed locally
+               // isScreenSharingEnabled=false; //don't do that here... only when stop was really pressed locally
+        log('message is:' + (message)?'sending hangup message':'');
         if (!message) { //we send a message to the peer if we stop the connection
             var message = {
                 id: stopMessageId
@@ -674,7 +671,15 @@ function stop(message, callback) {
             
             sendMessage(message);
         }
+        
+        
+        
+        hideSpinner(videoInput, videoOutput);
+        document.getElementById('videoSmall').display = 'block';
+        webRtcPeer.dispose();
+        webRtcPeer = null;
     }
+    if(callback) callbackqueue.push(callback);
 }
 
 function onError() {

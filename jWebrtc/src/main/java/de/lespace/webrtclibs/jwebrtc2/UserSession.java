@@ -107,7 +107,7 @@ public class UserSession {
     }
   }
 
-  public void clear() {
+  public void clearWebRtcSessions() {
     this.webRtcEndpoint = null;
     this.candidateList.clear();
   }

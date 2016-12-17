@@ -49,17 +49,20 @@ public class WebSocketServer {
         private void printCurrentUsage(){
                 Enumeration<MediaPipeline> e = pipelines.elements();
                 
+                log.error("current pipelines size():"+pipelines.size());
+                
                 while(e.hasMoreElements()){
                     MediaPipeline mp = e.nextElement();
-                    log.debug("current pipeline:"+mp.getName() + " : "+mp.getId());
+                    if(mp!=null) 
+                        log.error("current pipeline:"+((mp.getName()!=null)?mp.getName():"NULL" )+ " : "+mp.getId());
                 }
                 
-                log.debug("current sessions keys:"+registry.getRegisteredUsers());
-                
+                log.error("current sessions keys:"+registry.getRegisteredUsers());
+                log.error("current UserSession size:"+registry.getUserSessions().size());
                 Iterator<UserSession> i  = registry.getUserSessions().iterator();
                 while(i.hasNext()){
                     UserSession us = i.next();
-                    log.debug("current pipeline:"+us.getName()+" -  "+us.getSessionId());
+                    if(us!=null) log.error("current user:"+us.getName()+" -  "+us.getSessionId());
                 }
         }
 	@OnOpen
@@ -91,7 +94,7 @@ public class WebSocketServer {
 	 */
 	@OnClose
 	public void onClose(Session session) {
-		log.info("apprtcWs closed connection [{}]", session.getId());
+		log.error("apprtcWs closed connection [{}]", session.getId());
                 printCurrentUsage();
                 UserSession user = registry.getBySession(session);
 		try {
@@ -200,15 +203,16 @@ public class WebSocketServer {
 			break;
 		case "stop":
 			try {
-                                log.error("received stop closing media piplines");
+                                log.error("received stop closing media piplines callback:"+jsonMessage.has("callback"));
 				stop(session,jsonMessage.has("callback"));
                                 printCurrentUsage();
                             } catch (IOException ex) {
+                                ex.printStackTrace();
 				log.error(ex.getLocalizedMessage(), ex);
                             }
 			break;
                 case "callback":
-                        
+                        log.error("got callback myName is:"+userSession.getName()+" originalCall from:"+userSession.getCallingFrom()+" to:"+userSession.getCallingTo());
                         String from = userSession.getCallingFrom();
                         String to =  userSession.getCallingTo();
                         String myName = userSession.getName();
@@ -216,7 +220,7 @@ public class WebSocketServer {
                         JsonObject callBackMessage = new JsonObject();
                         callBackMessage.addProperty("id", "callback");
                         try {
-                            if(myName.equals(from)){
+                            if(from==null || myName.equals(from)){  //this from seems to be null sometimes... not clear why!
                                 registry.getByName(to).sendMessage(callBackMessage);
                             }else{
                                 registry.getByName(from).sendMessage(callBackMessage);
@@ -427,7 +431,7 @@ public class WebSocketServer {
                             "\"password\":\"\"," +
                             "\"urls\":[" +"\""+stunUrl+"?transport=udp\",\""+stunUrl+"?transport=tcp\"";
                
-               String stun2 = ",\"stun:stun.l.google.com:19302\",";
+               String stun2 = ""; /*,\"stun:stun.l.google.com:19302\",";
                             stun2 += "\"stun:stun1.l.google.com:19302\",";
                             stun2 += "\"stun:stun2.l.google.com:19302\",";
                             stun2 += "\"stun:stun3.l.google.com:19302\",";
@@ -439,7 +443,7 @@ public class WebSocketServer {
                             stun2 += "\"stun:stun.voipbuster.com\",";
                             stun2 += "\"stun:stun.voipstunt.com\",";
                             stun2 += "\"stun:stun.voxgratia.org\",";
-                            stun2 += "\"stun:stun.services.mozilla.com\"";
+                            stun2 += "\"stun:stun.services.mozilla.com\"";*/
                            
                             stun += stun2+"]}"; 
                
@@ -740,7 +744,8 @@ public class WebSocketServer {
                         message.addProperty("id", "stopCommunication");
                         if(sendCallback==true) message.addProperty("callback", "true");
                         stopUser.sendMessage(message);
-                        stopUser.clear();                       
+                      //  if(!sendCallback)
+                         stopUser.clearWebRtcSessions();                       
                     }      
                     else if(stoppedUserTo!=null && stoppedUserTo.getSession()!=null){
                         log.debug("die id des stoppenden IST! die des anrufenden");
@@ -750,7 +755,8 @@ public class WebSocketServer {
                        message.addProperty("id", "stopCommunication");
                        if(sendCallback==true) message.addProperty("callback", "true");
                        stopUser.sendMessage(message);
-                       stopUser.clear();                  
+                     //  if(!sendCallback)
+                        stopUser.clearWebRtcSessions();                  
                    }
                    
 
@@ -763,8 +769,8 @@ public class WebSocketServer {
                         MediaPipeline pipeline2 = pipelines.remove(stopUser.getSession().getId());
                         pipeline2.release();
                     }
-                     
-                    stopperUser.clear();
+                    //if(!sendCallback) 
+                        stopperUser.clearWebRtcSessions();
                     log.error("Stopped", sessionId);
                     sendRegisteredUsers(); 
                 }
