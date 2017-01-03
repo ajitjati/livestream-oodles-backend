@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-console.log('version 0.5.3 built time: 17.12.2016 2:14');
+console.log('version 0.5.5 built time: 03.01.2017 17:20');
 var ws = new WebSocket('wss://' + location.host + '/jWebrtc/ws');
-var doLog = false;
+var doLog = true;
 var videoInput;
 var videoOutput;
 var webRtcPeer;
@@ -399,6 +399,7 @@ function callResponse(message) {
         var errorMessage = message.message ? message.message :
             'Unknown reason for call rejection.';
         log(errorMessage);
+        alert(errorMessage);
         stop(false,false);
     } else {
       log("call accepted");
@@ -518,6 +519,7 @@ var wrapFunction = function(fn, context, params) {
 
 var newCall = function(options){
     setCallState(PROCESSING_CALL);
+    showSpinner(videoInput, videoOutput);
     webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
     function(error) {
         if (error) {
@@ -537,8 +539,7 @@ function call() {
         to = document.getElementById('peer').value;
     }
     
-    showSpinner();
-   
+    showSpinner(videoInput, videoOutput);
 
     if (isScreenSharingEnabled) {
         var audioConstraints = {
@@ -649,6 +650,7 @@ function playEnd() {
 }
 function terminate(){
     isScreenSharingEnabled = false;
+    $(chkScreenEnabled).toggleClass('btn-danger', isScreenSharingEnabled);
     stop(null,false);
 }
 
@@ -673,6 +675,8 @@ function stop(message, callback) {
         }
         
         
+        isScreenSharingEnabled = false;
+        $(chkScreenEnabled).toggleClass('btn-danger', isScreenSharingEnabled);
         
         hideSpinner(videoInput, videoOutput);
         document.getElementById('videoSmall').display = 'block';

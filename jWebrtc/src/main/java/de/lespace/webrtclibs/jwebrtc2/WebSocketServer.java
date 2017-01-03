@@ -15,9 +15,11 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 import org.kurento.client.EndOfStreamEvent;
 import org.kurento.client.EventListener;
+import org.kurento.client.FaceOverlayFilter;
 import org.kurento.client.IceCandidate;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.OnIceCandidateEvent;
@@ -154,6 +156,7 @@ public class WebSocketServer {
 			try {
                             
                                 boolean registered = register(session, jsonMessage);
+                                
 				if(registered) {
 					userSession = registry.getBySession(session);
 					sendRegisteredUsers();
@@ -504,7 +507,14 @@ public class WebSocketServer {
 	 */
 	private boolean register(Session session, JsonObject jsonMessage) throws IOException {
 
+            
+             
+                        
 		String name = jsonMessage.getAsJsonPrimitive("name").getAsString();
+                if(registry.exists(name)){
+                    checkIfSessionIsAlive(registry.getByName(name));
+                }
+                    
 		log.debug("register called: {}", name);
 
 		boolean registered = false;
@@ -516,9 +526,11 @@ public class WebSocketServer {
 		if (name.isEmpty()) {
 			response = "rejected";
 			message = "empty user name";
-		} else if (registry.exists(name)) {
-			response = "skipped";
-			message = "user " + name + " already registered";
+                
+		//} else if (registry.exists(name)) { if this username already existed in a different session check if it's still alive (send message) if error kill it
+           
+		//	response = "skipped";
+		//	message = "user " + name + " already registered";
 		} else {
 			registry.register(newUser);
 			registered = true;
@@ -534,7 +546,22 @@ public class WebSocketServer {
 		log.debug("Sent response: {}", responseJSON);
 		return registered;
 	}
-
+        
+        private void checkIfSessionIsAlive(UserSession userSession){
+            
+                 JsonObject responseJSON = new JsonObject();
+                 
+                 responseJSON.addProperty("id", "ping");
+                           // responseJSON.addProperty("response", userListJson);
+                          //  responseJSON.addProperty("message", "");
+                 log.debug("sending ping: {}",responseJSON.toString());
+            try {
+                userSession.sendMessage(responseJSON);
+            } catch (IOException ex) {
+               registry.removeBySession(userSession.getSession());
+            }
+            
+        }
 	/**
 	 * Updates the list of registered users on all clients.
 	 * 
@@ -577,7 +604,7 @@ public class WebSocketServer {
 
 		UserSession callee = registry.getByName(to);
 
-		if (callee != null) {
+		if (callee != null && !callee.isBusy()) {
 			caller.setSdpOffer(jsonMessage.getAsJsonPrimitive("sdpOffer").getAsString());
 			caller.setCallingTo(to);
 
@@ -589,11 +616,24 @@ public class WebSocketServer {
 
 			callee.sendMessage(response);
 			callee.setCallingFrom(from);
-		} else {
-			log.debug("Callee [{}] does not exist! Rejecting call.", to);
+		} 
+                else if(callee.isBusy()){
+                    
+                        log.error("Callee [{}] does not exist! Rejecting call.", to);
 
 			response.addProperty("id", "callResponse");
-			response.addProperty("response", "rejected: user '" + to + "' is not registered");
+                        response.addProperty("response","rejected");
+			response.addProperty("message", "rejected: user '" + to + "' is busy!");
+
+			caller.sendMessage(response);
+                    
+                }
+                else {
+			log.error("Callee [{}] does not exist! Rejecting call.", to);
+
+			response.addProperty("id", "callResponse");
+                        response.addProperty("response","rejected");
+			response.addProperty("message", "rejected: user '" + to + "' is not registered");
 
 			caller.sendMessage(response);
 		}
@@ -635,6 +675,12 @@ public class WebSocketServer {
 					}
 				});
 
+                                
+                                //add filter 
+                                      // Media logic
+
+                                
+                                
 				caller.setWebRtcEndpoint(pipeline.getCallerWebRtcEp());
 
 				pipeline.getCallerWebRtcEp().addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
@@ -689,6 +735,25 @@ public class WebSocketServer {
 				pipeline.getCallerWebRtcEp().gatherCandidates();
 
 				pipeline.record();
+                                
+   /*     MediaPipeline mediaPipeline = pipeline.getPipeline();
+        FaceOverlayFilter faceOverlayFilterCaller = new FaceOverlayFilter.Builder(mediaPipeline).build();
+        FaceOverlayFilter faceOverlayFilterCallee = new FaceOverlayFilter.Builder(mediaPipeline).build();
+
+     // String appServerUrl = System.getProperty("app.server.url", "https://localhost/jWebrtc/");
+        faceOverlayFilterCaller.setOverlayedImage("https://192.168.178.22/jWebrtc/img/santa-overlay.png", 0F, 0F, 1.0F, 1.0F);
+        faceOverlayFilterCallee.setOverlayedImage("https://192.168.178.22/jWebrtc/img/santa-overlay.png", 0F, 0F, 1.0F, 1.0F);
+      //faceOverlayFilter2.setOverlayedImage(appServerUrl + "/img/santa-overlay.png", -0.35F, -1.2F, 1.6F, 1.6F);
+
+        pipeline.getCallerWebRtcEp().connect(faceOverlayFilterCaller);
+        faceOverlayFilterCaller.connect(pipeline.getCalleeWebRtcEp());
+           
+        pipeline.getCalleeWebRtcEp().connect(faceOverlayFilterCallee);
+        faceOverlayFilterCallee.connect(pipeline.getCallerWebRtcEp());
+     // log.error("added overlay");
+       
+     // faceOverlayFilter2.connect(pipeline.getCalleeWebRtcEp());
+        log.error("overlay connected");*/
 
 			} catch (Throwable t) {
 
@@ -703,6 +768,7 @@ public class WebSocketServer {
 
 				JsonObject response = new JsonObject();
 				response.addProperty("id", "callResponse");
+                                response.addProperty("message", t.getMessage());
 				response.addProperty("response", "rejected");
 				caller.sendMessage(response);
 

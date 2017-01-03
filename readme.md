@@ -89,9 +89,19 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 
 
 ###Todo/Bugs
+- (all platforms) if another caller is calling a bussy connection, it can happen he kicks out a running call (busy-message does not work)
+- (ipad/firefox) if a firefox gets called from ipad/iphone first time it happend screensharing did not started. (maybe because I was connected via VPN to webrtc server - can this problem be reproduced?)
+- (browser) double click on video should result in a fullscreen. (e.g. screensharing / fullscreenvideo)
+- (firefox) installation of screensharing plugin does not seem to work for all users. ff displays 3-6-9 yellow install-buttons in one reported case
+- (browser) hangup with more then one user - peer-dropdown goes back to 0 (should stay with the just called user)
+- (all platforms) try forcibly crashing the app/communication - does peer goes back to normal?
+
+###Cannot be reproduced
+- (iphone) after fresh installation of ipad app permission (audio - video) request results in crash of app during first call
+
 - (Bug) IPv6 only networks need to be tested. 
 	http://www.brianjcoleman.com/tutorial-how-to-test-your-app-for-ipv6-compatibility/
-	https://github.com/Anakros/WebRTC/issues/7
+	https://github.com/Anakros/WebRTC/issues/7	
 	http://stackoverflow.com/questions/40078763/has-anyone-managed-to-get-group-calls-working-with-kurento-on-ios-with-ipv6-only
 
 - screen firefox screensharing without audio
@@ -131,6 +141,7 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 
 
 ###Done
+- 2016-12-19 - (browser) after stop in screensharing mode - screensharing switch does not go back to 'blue'-mode stays in 'red-mode'
 - 2016-12-17 - send registered users without own user to peers.
 - 2016-12-17 - Screensharing - when phone is calling browser - screensharing does not activate on mobile
 	- is only appearing om tomcat - session is closed
