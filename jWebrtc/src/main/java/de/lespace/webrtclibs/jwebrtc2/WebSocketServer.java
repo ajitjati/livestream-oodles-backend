@@ -11,9 +11,12 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 
@@ -40,6 +43,7 @@ public class WebSocketServer {
 	private static final Gson gson = new GsonBuilder().create();
 	
         private static final ConcurrentHashMap<String, MediaPipeline> pipelines = new ConcurrentHashMap<String, MediaPipeline>();
+	private static final ConcurrentHashMap<String, Date> pongs = new ConcurrentHashMap<String, Date>();
 	
         public static UserRegistry registry = new UserRegistry();
 	
@@ -48,6 +52,60 @@ public class WebSocketServer {
 	private static final String USER_STATUS_ONLINE = "online";
         
         private static final Logger log = LoggerFactory.getLogger(WebSocketServer.class);
+        
+        class Ping extends TimerTask {
+            
+            public UserSession session;
+            public Ping(UserSession session){
+                this.session = session;
+            }
+            
+            public void run() {
+               System.out.println("ping:"+this.session.getSessionId()); 
+               
+               try {
+                    JsonObject responseJSON = new JsonObject();
+                    responseJSON.addProperty("id", "ping");
+                    
+                    this.session.sendMessage(responseJSON);
+                    
+                } catch (IOException ex) {
+                     System.out.println("removing session and stopping ping");  
+                }
+                
+               
+                if(pongs.get(this.session.getSessionId()) !=null){
+                   System.out.println("pong:"+pongs.get(this.session.getSessionId()));
+                }
+                
+                //if no pong is inside add at least one so we can cancel wrong connections
+                if(pongs.get(this.session.getSessionId()) ==null)pongs.put(this.session.getSessionId(), new Date());
+                    
+                
+                if(pongs.get(this.session.getSessionId()) !=null && 
+                       pongs.get(this.session.getSessionId()).getTime()+10000 < new Date().getTime()){
+                   try {
+                       //removeCompleteSessionAndInformParties(this.session.getSession());
+
+                       this.session.getSession().close();
+                   } catch (IOException ex) {
+                       System.out.println("closing session");
+                   }
+                    
+                    pongs.remove(this.session.getSessionId());
+                    this.cancel();
+                }
+                
+                
+                //System.out.println("pong"+this.session.pong); 
+                //System.out.println("date"+new Date()); 
+                
+               /* if(this.session.pong!=null && this.session.pong.getTime()+10000<new Date().getTime()){
+                    removeCompleteSessionAndInformParties(this.session.getSession());
+                    this.cancel();
+                }*/
+            }
+        }
         
         private void printCurrentUsage(){
             try{
@@ -78,6 +136,9 @@ public class WebSocketServer {
                 UserSession newUser = new UserSession(session, "webuser@"+session.getId());
 		registry.register(newUser);
 		printCurrentUsage();
+                
+                Timer timer = new Timer();
+                timer.schedule(new Ping(newUser), 0, 5000);
 	}
 
         
@@ -102,23 +163,31 @@ public class WebSocketServer {
 	@OnClose
 	public void onClose(Session session) {
 		log.error("apprtcWs closed connection [{}]", session.getId());
+                removeCompleteSessionAndInformParties(session);
+	}
+        
+        public void removeCompleteSessionAndInformParties(Session session){
+                
                 printCurrentUsage();
                 UserSession user = registry.getBySession(session);
-		try {
-			publishOnlineStatus(user.getName(), USER_STATUS_OFFLINE);
-		} catch (IOException e) {
-                        log.error(e.getLocalizedMessage(), e);
-		}
-                
-		try {
-			stop(session,false);
-                        String sessionId = session.getId();
-                        killUserSession(session);
-		} catch (IOException ex) {
-			log.error(ex.getLocalizedMessage(), ex);
-		}
-                printCurrentUsage();
-	}
+               
+                if(user!=null){ //only publish online status and kill session if user is still in the registry
+                    try {
+                            publishOnlineStatus(user.getName(), USER_STATUS_OFFLINE);
+                    } catch (IOException e) {
+                            log.error(e.getLocalizedMessage(), e);
+                    }
+
+                    try {
+                            stop(session,false);
+                            String sessionId = session.getId();
+                            killUserSession(session);
+                    } catch (IOException ex) {
+                            log.error(ex.getLocalizedMessage(), ex);
+                    }
+                    printCurrentUsage();
+                }
+        }
 
 	/**
 	 * When a user sends a message to the server, this method will intercept the
@@ -144,6 +213,17 @@ public class WebSocketServer {
 		}
 
 		switch (jsonMessage.get("id").getAsString()) {
+                case "pong":
+                      
+                        if(userSession!=null){
+                            
+                            if(pongs.containsKey(userSession))
+                                pongs.replace(userSession.getSessionId(), new Date());
+                            else
+                                pongs.put(userSession.getSessionId(), new Date());
+                              log.error("got pong from peer size:"+pongs.size()+" "+pongs.toString());
+                        }
+                        break;
 		case "appConfig":
 			try {
 				appConfig(session, jsonMessage);
@@ -554,12 +634,15 @@ public class WebSocketServer {
                  responseJSON.addProperty("id", "ping");
                            // responseJSON.addProperty("response", userListJson);
                           //  responseJSON.addProperty("message", "");
-                 log.debug("sending ping: {}",responseJSON.toString());
-            try {
+                 log.error("sending ping: {}",responseJSON.toString());
+                 
+          /*  try {
                 userSession.sendMessage(responseJSON);
             } catch (IOException ex) {
-               registry.removeBySession(userSession.getSession());
-            }
+               
+                log.error("problem with session",ex.getMessage());
+                registry.removeBySession(userSession.getSession());
+            }*/
             
         }
 	/**

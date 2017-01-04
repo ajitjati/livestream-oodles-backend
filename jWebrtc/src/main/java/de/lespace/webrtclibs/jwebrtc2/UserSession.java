@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 
 import com.google.gson.JsonObject;
+import java.util.Date;
 import javax.websocket.Session;
 
 /**
@@ -37,6 +38,8 @@ public class UserSession {
   private String callingTo;
   private String callingFrom;
   private WebRtcEndpoint webRtcEndpoint;
+  public Date pong;
+  
   private final List<IceCandidate> candidateList = new ArrayList<IceCandidate>();
 
   public UserSession(Session session, String name) {
@@ -116,9 +119,20 @@ public class UserSession {
             return this.webRtcEndpoint != null;
     }
 
-public void setPlayingWebRtcEndpoint(WebRtcEndpoint webRtcEndpoint) {
-	// TODO Auto-generated method stub
-	
-}
+    public void setPlayingWebRtcEndpoint(WebRtcEndpoint webRtcEndpoint) {
+            // TODO Auto-generated method stub
+
+    }
+
+    public Date getPong(){
+        if(this.pong==null) this.pong = new Date();
+        return this.pong;
+    }
+    
+    public void setPong(Date date) {
+            this.pong = date;
+            System.out.println("pong wurde gesetzt:"+date);
+    }
+    
 }
 

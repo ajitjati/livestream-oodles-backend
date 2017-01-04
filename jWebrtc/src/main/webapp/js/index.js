@@ -14,9 +14,9 @@
  * limitations under the License.
  *
  */
-console.log('version 0.5.5 built time: 03.01.2017 17:20');
+console.log('version 0.5.6 built time: 04.01.2017 12:50');
 var ws = new WebSocket('wss://' + location.host + '/jWebrtc/ws');
-var doLog = true;
+var doLog = false;
 var videoInput;
 var videoOutput;
 var webRtcPeer;
@@ -186,6 +186,12 @@ ws.onmessage = function(message) {
         readAppConfig(parsedMessage);
     } else {
         switch (parsedMessage.id) {
+            case 'ping':
+                  var response = {
+                            id: 'pong'  
+                  };
+                 sendMessage(response);
+            break;
             case 'registerResponse':
                 registerResponse(parsedMessage);
                 break;
