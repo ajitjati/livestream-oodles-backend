@@ -1,30 +1,257 @@
-/*
- * (C) Copyright 2016 Le Space UG
- */
-var getCurrentScript = function () {
-  if (document.currentScript) {
-    return document.currentScript.src;
-  } else {
-    var scripts = document.getElementsByTagName('script');
-    return scripts[scripts.length-1].src;
+    
+var myConsultant = {name: '', status: ''};
+ 
+ws.onopen = function() {
+    console.log("ws connection now open");
+    requestAppConfig();
 
-  }
-};
-
-var getCurrentServer = function(scriptPath){
-      var l = document.createElement("a");
-      l.href = scriptPath;
-      return l.hostname;
+    try{
+          myConsultant.name = $('#webrtc-online-status').attr('data-peer');
+          log('checking online status of:'+myConsultant.name);
+          checkOnlineStatus(myConsultant);
+       }catch(err){}
+    isExtensionInstalled();
 }
 
+
+function checkOnlineStatus(user) {
+	var message = {
+		id : 'checkOnlineStatus',
+		user : user.name
+	};
+	sendMessage(message);
+}
+
+function setOnlineStatus(message) {
+    var statusTextElement = $("#webrtc-online-status");
+    if (message.message == myConsultant.name) {
+            myConsultant.status = message.response;
+    }
+    from = message.myUsername;
+    console.log('setting online status done: myUsername is:'+from+' status:'+myConsultant.status);
+    statusTextElement.text(myConsultant.name + ' is ' + myConsultant.status);
+    if(myConsultant.status=='online'){
+        enableButton('#call', 'call()');
+    }else{
+        disableButton('#call');
+    }
+}
+var videoInput;
+var videoOutput;
+var miniVideo; 
+var icons;
+var isVideoMuted;
+var isMicroMuted;
+
+window.onload = function() {
+
+    setRegisterState(NOT_REGISTERED);
+    videoInput = document.getElementById('local-video');
+    videoOutput = document.getElementById('remote-video');
+    miniVideo = document.getElementById('mini-video');
+    icons = document.getElementById('icons');
+}	
+
+function setRegisterState(nextState) {
+	switch (nextState) {
+	case NOT_REGISTERED:
+		setCallState(NO_CALL);
+		break;
+	case REGISTERING:
+		break;
+	case REGISTERED:
+		setCallState(NO_CALL);
+		break;
+	default:
+		return;
+	}
+	registerState = nextState;
+}
+
+function setCallState(nextState) {
+	switch (nextState) {
+	
+        case NO_CALL:
+            //disableButton('#muteAudio');
+            //disableButton('#muteVideo');
+            //disableButton('#terminate');
+            deactivate(this.videoOutput);
+            deactivate(this.miniVideo);
+            deactivate(this.videoInput);
+            this.deactivate(icons);
+            this.activate('#confirm-join-div'); 
+            enableButton('#call', 'call()');
+            break;
+
+	case PROCESSING_CALL:
+
+            disableButton('#call');
+            disableButton('#muteAudio');
+            disableButton('#muteVideo');
+            disableButton('#terminate');
+            break;
+
+	case IN_CALL:
+            disableButton('#call');
+            miniVideo.src = videoInput.src;
+            activate(this.videoOutput);
+            this.activate(icons); 
+            activate(this.miniVideo);
+            this.deactivate('#confirm-join-div'); 
+            enableButton('#muteVideo', 'muteVideo()');
+            enableButton('#muteAudio', 'muteMicrophone()');
+            enableButton('#terminate', 'terminate()');
+            break;
+		
+	default:
+		return;
+	}
+	callState = nextState;
+}
+
+function activate(id) {
+	$(id).removeClass("hidden").addClass( "active" );
+}
+function deactivate(id) {
+	$(id).removeClass( "active" ).addClass("hidden");
+}
+
+
+function incomingCall(message) {
+	// If busy just reject without disturbing user
+	if (callState != NO_CALL) {
+		var response = {
+			id : 'incomingCallResponse',
+			from : message.from,
+			callResponse : 'reject',
+			message : 'bussy'
+		};
+		return sendMessage(response);
+	}
+
+	setCallState(PROCESSING_CALL);
+	if (confirm('User ' + message.from
+			+ ' is calling you. Do you accept the call?')) {
+
+        videoInput = document.getElementById('local-video');
+        videoOutput = document.getElementById('remote-video');
+        miniVideo = document.getElementById('mini-video');
+        icons = document.getElementById('icons');
+        showSpinner(videoInput, videoOutput);
+       
+        from = message.from;
+		var options = {
+			localVideo : videoInput,
+			remoteVideo : videoOutput,
+			onicecandidate : onIceCandidate,
+			onerror : onError
+		}
+                
+        options.configuration  = configuration;
+		webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
+				function(error) {
+					if (error) {
+						return console.error(error);
+					}
+					webRtcPeer.generateOffer(onOfferIncomingCall);
+                });
+
+	} else {
+		var response = {
+			id : 'incomingCallResponse',
+			from : message.from,
+			callResponse : 'reject',
+			message : 'user declined'
+		};
+		sendMessage(response);
+		stop();
+	}
+}
+
+function muteMicrophone() {
+     isMicroMuted = !isMicroMuted;
+    webRtcPeer.peerConnection.getLocalStreams()[0].getAudioTracks()[0].enabled = isMicroMuted;
+   
+
+}
+
+function muteVideo() {
+    isVideoMuted = !isVideoMuted;
+    webRtcPeer.peerConnection.getLocalStreams()[0].getVideoTracks()[0].enabled = isVideoMuted;
+   	
+}
+
+function onOfferIncomingCall(error, offerSdp) {
+
+	if (error)
+		return console.error("Error generating the offer");
+	var response = {
+		id : 'incomingCallResponse',
+		from : from,
+		callResponse : 'accept',
+		sdpOffer : offerSdp
+	};
+	sendMessage(response);
+}
+
+
+function call() {
+
+	setCallState(PROCESSING_CALL);
+        videoInput = document.getElementById('local-video');		// <video>-element
+        videoOutput = document.getElementById('remote-video');
+        miniVideo = document.getElementById('mini-video');
+        icons = document.getElementById('icons');
+	showSpinner(videoInput, videoOutput);
+
+	var options = {
+		localVideo : videoInput,
+		remoteVideo : videoOutput,
+		onicecandidate : onIceCandidate,
+		onerror : onError
+	}
+
+    options.configuration  = configuration;
+	webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
+			function(error) {
+				if (error) {
+					return console.error(error);
+				}
+				webRtcPeer.generateOffer(onOfferCall);
+			});
+}
+
+function onOfferCall(error, offerSdp) {
+	
+	if (error) {
+		return console.error('Error generating the offer');
+	}
+
+	console.log('Invoking SDP offer callback function : calling:'+myConsultant.name+ ' from:'+from);
+	
+	var message = {
+		id : 'call',
+                from: from,
+                to: myConsultant.name,
+		sdpOffer : offerSdp
+	};
+	
+	sendMessage(message);
+}
+
+
+
+
+
+ /*  
 var server = getCurrentServer(getCurrentScript()); //change it in webrtcStatusWidget* too!
 if(server!='localhost' && server!='nicokrause.com') //development/integration/production server!
         server = "webrtc.a-fk.de"; // getCurrentServer(); //change it in status.js / index.js too
 
-        
+     
 var ws = new WebSocket('wss://' + server + '/jWebrtc/ws');
 
-var localVideo;
+var videoInput;
 var remoteVideo;
 var miniVideo; 
 var icons; 
@@ -74,7 +301,7 @@ function setCallState(nextState) {
 	disableButton('#terminate');
         deactivate(this.remoteVideo);
         deactivate(this.miniVideo);
-        deactivate(this.localVideo);
+        deactivate(this.videoInput);
         this.deactivate(icons);
         this.activate('#confirm-join-div'); 
         enableButton('#call', 'call()');
@@ -92,7 +319,7 @@ function setCallState(nextState) {
 	case IN_CALL:
         
         disableButton('#call');
-        miniVideo.src = localVideo.src;
+        miniVideo.src = videoInput.src;
         activate(this.remoteVideo);
         this.activate(icons); 
         activate(this.miniVideo);
@@ -262,11 +489,11 @@ function incomingCall(message) {
 	if (confirm('User ' + message.from
 			+ ' is calling you. Do you accept the call?')) {
 
-        localVideo = document.getElementById('local-video');
+        videoInput = document.getElementById('local-video');
         remoteVideo = document.getElementById('remote-video');
         miniVideo = document.getElementById('mini-video');
         icons = document.getElementById('icons');
-        showSpinner(localVideo, remoteVideo);
+        showSpinner(videoInput, remoteVideo);
        
         from = message.from;
 		var options = {
@@ -454,7 +681,7 @@ function activate(id) {
 function deactivate(id) {
 	$(id).removeClass( "active" ).addClass("hidden");
 }
-
+*/
 
 //function registerUser(name) {
 //	setRegisterState(REGISTERING);

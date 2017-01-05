@@ -89,9 +89,10 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 
 
 ###Todo/Bugs
+- (bug) widget - screensharing cannot be switched on/off
 - (all platforms) if another caller is calling a bussy connection, it can happen he kicks out a running call (busy-message does not work)
-- (ipad/firefox) if a firefox gets called from ipad/iphone first time it happend screensharing did not started. (maybe because I was connected via VPN to webrtc server - can this problem be reproduced?)
 - (browser) double click on video should result in a fullscreen. (e.g. screensharing / fullscreenvideo)
+
 - (firefox) installation of screensharing plugin does not seem to work for all users. ff displays 3-6-9 yellow install-buttons in one reported case
 - (browser) hangup with more then one user - peer-dropdown goes back to 0 (should stay with the just called user)
 - (all platforms) try forcibly crashing the app/communication - does peer goes back to normal?
@@ -141,6 +142,10 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 
 
 ###Done
+- 2017-01-05 - (bug) widget - cannot hear any audio with android  
+- 2017-01-05 - (bug) widget - audio cannot be switched on/off
+- 2017-01-05 - (bug) widget - video cannot be switched on/off
+- 2017-01-04 - (feature) (server) ping-ping heartbeet for webservice and apps
 - 2016-12-19 - (browser) after stop in screensharing mode - screensharing switch does not go back to 'blue'-mode stays in 'red-mode'
 - 2016-12-17 - send registered users without own user to peers.
 - 2016-12-17 - Screensharing - when phone is calling browser - screensharing does not activate on mobile

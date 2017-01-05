@@ -15,8 +15,31 @@
  *
  */
 console.log('version 0.5.6 built time: 04.01.2017 12:50');
-var ws = new WebSocket('wss://' + location.host + '/jWebrtc/ws');
-var doLog = false;
+/*
+ * (C) Copyright 2016 Le Space UG
+ */
+var getCurrentScript = function () {
+  if (document.currentScript) {
+    return document.currentScript.src;
+  } else {
+    var scripts = document.getElementsByTagName('script');
+    return scripts[scripts.length-1].src;
+
+  }
+};
+
+var getCurrentServer = function(scriptPath){
+      var l = document.createElement("a");
+      l.href = scriptPath;
+      return l.hostname;
+}
+
+var server = getCurrentServer(getCurrentScript()); //get server address from current scripts
+if(server!='localhost' && server!='nicokrause.com') //development/integration/production server!
+        server = "webrtc.a-fk.de"; // getCurrentServer(); //change it in status.js / index.js too
+
+var ws = new WebSocket('wss://' +server + '/jWebrtc/ws');
+var doLog = true;
 var videoInput;
 var videoOutput;
 var webRtcPeer;
@@ -38,10 +61,7 @@ var audioStream;
 
 var from;
 var to;
-var myConsultant = {
-    name: '',
-    status: ''
-};
+
 var configuration = {
     "iceServers": [{
         "urls": "stun:webrtc.a-fk.de:3478"
@@ -136,20 +156,7 @@ function log(message){
     if(doLog) console.log(message);
 }
 
-window.onload = function() {
-  if(doLog) console = new Console();
-  setRegisterState(NOT_REGISTERED);
-  var drag = new Draggabilly(document.getElementById('videoSmall'));
-  videoInput = document.getElementById('videoInput');
-  videoOutput = document.getElementById('videoOutput');
 
-  document.getElementById('name').focus();
-  ws.onopen = function() {
-      log("ws connection now open");
-      requestAppConfig();
-  }
-  isExtensionInstalled();
-}
 
 $(function() {
   // Handler for .ready() called.
@@ -179,6 +186,7 @@ window.onbeforeunload = function() {
 }
 
 ws.onmessage = function(message) {
+    
     var parsedMessage = JSON.parse(message.data);
     log('Received message: ' + message.data);
 
@@ -207,13 +215,13 @@ ws.onmessage = function(message) {
             case 'startCommunication':
                 startCommunication(parsedMessage);
                 break;
+                
             case 'stopCommunication':
                 log('Communication ended by remote peer');
                 
                 stop(true,false); //message came from peer (true) we don't need a callback (false)
                 
                 if(parsedMessage.callback){
-                
                     var message = {
                             id: "callback"
                     };
@@ -234,7 +242,9 @@ ws.onmessage = function(message) {
                 });
                 break;
             case 'responseOnlineStatus':
-                setOnlineStatus(parsedMessage);
+                try{
+                    setOnlineStatus(parsedMessage);
+                }catch(err){console.log('method not found'+err);}
                 break;
             case 'playResponse':
                 playResponse(parsedMessage);
@@ -257,13 +267,6 @@ function requestAppConfig() {
     sendMessage(message);
 }
 
-function setOnlineStatus(message) {
-    var statusTextElement = $("#webrtc-online-status");
-    if (message.message == myConsultant.name) {
-        myConsultant.status = message.response;
-    }
-    statusTextElement.text(myConsultant.name + ' is ' + myConsultant.status);
-}
 
 function readAppConfig(message) {
     if (message.params) {
@@ -309,7 +312,7 @@ function setAudioEnabled(enabled) {
   isAudioEnabled = enabled;
   if (webRtcPeer != undefined) {
     var localStreams = webRtcPeer.peerConnection.getLocalStreams();
-    log(localStreams.length + " local streams");
+
     localStreams.forEach(function(localStream, index, array) {
       var audioTracks = localStream.getAudioTracks();
 
@@ -662,13 +665,11 @@ function terminate(){
 
 
 function stop(message, callback) {
-    var stopMessageId = (callState == IN_CALL || callState == PROCESSING_CALL) ? 'stop' : 'stopPlay';
-    
+   
+    var stopMessageId = (callState == IN_CALL || callState == PROCESSING_CALL) ? 'stop' : 'stopPlay';    
     setCallState(NO_CALL);
-    
-
     if (webRtcPeer) {
-        
+    
                // isScreenSharingEnabled=false; //don't do that here... only when stop was really pressed locally
         log('message is:' + (message)?'sending hangup message':'');
         if (!message) { //we send a message to the peer if we stop the connection
@@ -682,12 +683,13 @@ function stop(message, callback) {
         
         
         isScreenSharingEnabled = false;
-        $(chkScreenEnabled).toggleClass('btn-danger', isScreenSharingEnabled);
-        
+        $(chkScreenEnabled).toggleClass('btn-danger', isScreenSharingEnabled); 
         hideSpinner(videoInput, videoOutput);
-        document.getElementById('videoSmall').display = 'block';
         webRtcPeer.dispose();
         webRtcPeer = null;
+        
+        if(document.getElementById('videoSmall'))
+            document.getElementById('videoSmall').display = 'block';
     }
     if(callback) callbackqueue.push(callback);
 }
@@ -739,6 +741,7 @@ function disableButton(id) {
 }
 
 function enableButton(id, functionName) {
+    
     $(id).attr('disabled', false);
     if(functionName)$(id).attr('onclick', functionName);
     $(id).toggleClass("disabled", false);
@@ -748,13 +751,7 @@ function showCompatibilityWarning(id) {
   $(id).html("Please use a browser that supports WebRTC, like Firefox or Chrome or install WebRTC-Plugin https://github.com/sarandogou/webrtc-everywhere");
 }
 
-/**
- * Lightbox utility (to display media pipeline image in a modal dialog)
- */
-$(document).delegate('*[data-toggle="lightbox"]', 'click', function(event) {
-    event.preventDefault();
-    $(this).ekkoLightbox();
-});
+
 
 function isExtensionInstalled() {
   if (DetectRTC.browser.isChrome) {

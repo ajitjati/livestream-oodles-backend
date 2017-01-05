@@ -53,83 +53,7 @@ public class WebSocketServer {
         
         private static final Logger log = LoggerFactory.getLogger(WebSocketServer.class);
         
-        class Ping extends TimerTask {
-            
-            public UserSession session;
-            public Ping(UserSession session){
-                this.session = session;
-            }
-            
-            public void run() {
-               System.out.println("ping:"+this.session.getSessionId()); 
-               
-               try {
-                    JsonObject responseJSON = new JsonObject();
-                    responseJSON.addProperty("id", "ping");
-                    
-                    this.session.sendMessage(responseJSON);
-                    
-                } catch (IOException ex) {
-                     System.out.println("removing session and stopping ping");  
-                }
-                
-               
-                if(pongs.get(this.session.getSessionId()) !=null){
-                   System.out.println("pong:"+pongs.get(this.session.getSessionId()));
-                }
-                
-                //if no pong is inside add at least one so we can cancel wrong connections
-                if(pongs.get(this.session.getSessionId()) ==null)pongs.put(this.session.getSessionId(), new Date());
-                    
-                
-                if(pongs.get(this.session.getSessionId()) !=null && 
-                       pongs.get(this.session.getSessionId()).getTime()+10000 < new Date().getTime()){
-                   try {
-                       //removeCompleteSessionAndInformParties(this.session.getSession());
-
-                       this.session.getSession().close();
-                   } catch (IOException ex) {
-                       System.out.println("closing session");
-                   }
-                    
-                    pongs.remove(this.session.getSessionId());
-                    this.cancel();
-                }
-                
-                
-                //System.out.println("pong"+this.session.pong); 
-                //System.out.println("date"+new Date()); 
-                
-               /* if(this.session.pong!=null && this.session.pong.getTime()+10000<new Date().getTime()){
-                    removeCompleteSessionAndInformParties(this.session.getSession());
-                    this.cancel();
-                }*/
-            }
-        }
         
-        private void printCurrentUsage(){
-            try{
-                Enumeration<MediaPipeline> e = pipelines.elements();
-                
-                log.error("current pipelines size():"+pipelines.size());
-                
-                while(e.hasMoreElements()){
-                    MediaPipeline mp = e.nextElement();
-                    if(mp!=null) 
-                        log.error("current pipeline:"+((mp.getName()!=null)?mp.getName():"NULL" )+ " : "+mp.getId());
-                }
-                
-                log.error("current sessions keys:"+registry.getRegisteredUsers());
-                log.error("current UserSession size:"+registry.getUserSessions().size());
-                Iterator<UserSession> i  = registry.getUserSessions().iterator();
-                while(i.hasNext()){
-                    UserSession us = i.next();
-                    if(us!=null) log.error("current user:"+us.getName()+" -  "+us.getSessionId());
-                }
-             }catch(Exception ex){
-                         log.error("General printCurrentUsage Error:"+ex.getMessage());
-             }
-        }
 	@OnOpen
 	public void onOpen(Session session) {
 		log.debug("apprtcWs opened with sessionId {}", session.getId());
@@ -221,7 +145,7 @@ public class WebSocketServer {
                                 pongs.replace(userSession.getSessionId(), new Date());
                             else
                                 pongs.put(userSession.getSessionId(), new Date());
-                              log.error("got pong from peer size:"+pongs.size()+" "+pongs.toString());
+                              log.debug("got pong from peer size:"+pongs.size()+" "+pongs.toString());
                         }
                         break;
 		case "appConfig":
@@ -937,5 +861,75 @@ public class WebSocketServer {
             
                // }
 	}
+        
+        public class Ping extends TimerTask {
+            
+            public UserSession session;
+            public Ping(UserSession session){
+                this.session = session;
+            }
+            
+            public void run() {
+              log.debug("ping:"+this.session.getSessionId()); 
+               
+               try {
+                    JsonObject responseJSON = new JsonObject();
+                    responseJSON.addProperty("id", "ping");
+                    
+                    this.session.sendMessage(responseJSON);
+                    
+                } catch (IOException ex) {
+                     log.error("removing session and stopping ping");  
+                }
+                
+               
+                if(pongs.get(this.session.getSessionId()) !=null){
+                   log.debug("last pong:"+pongs.get(this.session.getSessionId()));
+                }
+                
+                //if no pong is inside add at least one so we can cancel wrong connections
+                if(pongs.get(this.session.getSessionId()) ==null)pongs.put(this.session.getSessionId(), new Date());
+                    
+                
+                if(pongs.get(this.session.getSessionId()) !=null && 
+                       pongs.get(this.session.getSessionId()).getTime()+10000 < new Date().getTime()){
+                   try {
+                       //removeCompleteSessionAndInformParties(this.session.getSession());
+
+                       this.session.getSession().close();
+                   } catch (IOException ex) {
+                       log.error("closing session");
+                   }
+                    
+                    pongs.remove(this.session.getSessionId());
+                    this.cancel();
+                }
+                
+            }
+        }
+        
+        private void printCurrentUsage(){
+            try{
+                Enumeration<MediaPipeline> e = pipelines.elements();
+                
+                log.error("current pipelines size():"+pipelines.size());
+                
+                while(e.hasMoreElements()){
+                    MediaPipeline mp = e.nextElement();
+                    if(mp!=null) 
+                        log.error("current pipeline:"+((mp.getName()!=null)?mp.getName():"NULL" )+ " : "+mp.getId());
+                }
+                
+                log.error("current sessions keys:"+registry.getRegisteredUsers());
+                log.error("current UserSession size:"+registry.getUserSessions().size());
+                Iterator<UserSession> i  = registry.getUserSessions().iterator();
+                while(i.hasNext()){
+                    UserSession us = i.next();
+                    if(us!=null) log.error("current user:"+us.getName()+" -  "+us.getSessionId());
+                }
+             }catch(Exception ex){
+                         log.error("General printCurrentUsage Error:"+ex.getMessage());
+             }
+        }
 
 }
