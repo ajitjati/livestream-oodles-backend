@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-console.log('version 0.5.6 built time: 04.01.2017 12:50');
+console.log('version 0.5.7 built time: 05.01.2017 15:34');
 /*
  * (C) Copyright 2016 Le Space UG
  */
