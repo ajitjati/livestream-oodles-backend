@@ -735,16 +735,23 @@ function showButton(id){
 }
 
 function disableButton(id) {
-    $(id).attr('disabled', true);
+    //alert(id);
+  
     $(id).removeAttr('onclick');
-    $(id).toggleClass("disabled", true);
+   /* $(id).removeAttr('-webkit-box-shadow');
+    $(id).removeAttr('-moz-box-shadow');
+    $(id).removeAttr('box-shadow');*/
+      $(id).attr('hidden', true);
+  //  $(id).toggleClass("disabled", true);
+ 
 }
 
 function enableButton(id, functionName) {
     
-    $(id).attr('disabled', false);
+    //$(id).attr('disabled', false);
+     $(id).attr('hidden', false);
     if(functionName)$(id).attr('onclick', functionName);
-    $(id).toggleClass("disabled", false);
+   // $(id).toggleClass("disabled", false);
 }
 
 function showCompatibilityWarning(id) {

@@ -89,12 +89,15 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 
 
 ###Todo/Bugs
-- (bug) widget - screensharing cannot be switched on/off
+- (bug) only publish allowed users to client
+	- status - widget only publish users which are requesting the own status (not other also online users)
+	- display only "allowed" users (get list from db/rest/other on server during registration
+- if a safari or internet explorer is accessing a webrtc display warning message (install plugin)
+- (feature) widget - screensharing cannot be switched on/off
 - (all platforms) if another caller is calling a bussy connection, it can happen he kicks out a running call (busy-message does not work)
 - (browser) double click on video should result in a fullscreen. (e.g. screensharing / fullscreenvideo)
 
 - (firefox) installation of screensharing plugin does not seem to work for all users. ff displays 3-6-9 yellow install-buttons in one reported case
-- (browser) hangup with more then one user - peer-dropdown goes back to 0 (should stay with the just called user)
 - (all platforms) try forcibly crashing the app/communication - does peer goes back to normal?
 
 ###Cannot be reproduced
@@ -108,9 +111,7 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 - screen firefox screensharing without audio
 - add 3 buttons (video, audio, screensharing to status.html (support widget)
 
-
 ###Improvements / Nice2Haves
-- (P1) Tomcat does not create nice session IDs for the websockts - use HTTP-SessionId? SecurityProblem? 
 - show splash for microphone, video, microphone permission 
 	- explain it for chrome 
 	- explain "always allow" for firefox
@@ -135,13 +136,15 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
   	- ffmpeg -i input1.mp4 -i input2.mp4 -filter_complex '[0:v]pad=iw*2:ih[int];[int][1:v]overlay=W/2:0[vid]' -map [vid] -c:v libx264 -crf 23 -preset veryfast output.mp4 (http://superuser.com/a/537482)
 - Turn-Config 
 	- change Turn-Authentication with every appConfig call
-  
+- Tomcat does not create nice session IDs for the websockts - use HTTP-SessionId? SecurityProblem? 
+
 ###Bugs
 - Screensharing Extension: Installation Firefox - no addon installed 5 yellow icons displayed - reload necessary
 - Screensharing Extension: Installation Chrome - direct installation not possible if not registered - reload necessary
 
-
 ###Done
+- 2017-01-12 - (improvement) widget - a call cannot be stopped when peer does not answer
+- 2017-01-05 - (browser) hangup with more then one user - peer-dropdown goes back to 0 (should stay with the just called user)
 - 2017-01-05 - (bug) widget - cannot hear any audio with android  
 - 2017-01-05 - (bug) widget - audio cannot be switched on/off
 - 2017-01-05 - (bug) widget - video cannot be switched on/off
@@ -234,8 +237,6 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 	https://tools.ietf.org/html/rfc7376
 	http://rtcquickstart.org/guide/multi/firewall-nat-considerations.html
 	https://www.nomachine.com/AR07N00894
-
-
 - 2016-08-29 - kurento behind NAT
 		http://builds.kurento.org/release/5.0.3/mastering/advanced_installation_guide.html?highlight=plumberendpoint
 		https://groups.google.com/forum/#!topic/kurento/QkO_ct0QEGE

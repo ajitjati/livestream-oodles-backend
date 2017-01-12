@@ -18,11 +18,8 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
-
 import org.kurento.client.EndOfStreamEvent;
 import org.kurento.client.EventListener;
-import org.kurento.client.FaceOverlayFilter;
 import org.kurento.client.IceCandidate;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.OnIceCandidateEvent;
@@ -86,7 +83,7 @@ public class WebSocketServer {
 	 */
 	@OnClose
 	public void onClose(Session session) {
-		log.error("apprtcWs closed connection [{}]", session.getId());
+		log.debug("apprtcWs closed connection [{}]", session.getId());
                 removeCompleteSessionAndInformParties(session);
 	}
         
@@ -138,7 +135,6 @@ public class WebSocketServer {
 
 		switch (jsonMessage.get("id").getAsString()) {
                 case "pong":
-                      
                         if(userSession!=null){
                             
                             if(pongs.containsKey(userSession))
@@ -215,7 +211,7 @@ public class WebSocketServer {
 			break;
 		case "stop":
 			try {
-                                log.error("received stop closing media piplines callback:"+jsonMessage.has("callback"));
+                                log.debug("received stop closing media piplines callback:"+jsonMessage.has("callback"));
 				stop(session,jsonMessage.has("callback"));
                                 printCurrentUsage();
                             } catch (IOException ex) {
@@ -224,7 +220,7 @@ public class WebSocketServer {
                             }
 			break;
                 case "callback":
-                        log.error("got callback myName is:"+userSession.getName()+" originalCall from:"+userSession.getCallingFrom()+" to:"+userSession.getCallingTo());
+                        log.debug("got callback myName is:"+userSession.getName()+" originalCall from:"+userSession.getCallingFrom()+" to:"+userSession.getCallingTo());
                         String from = userSession.getCallingFrom();
                         String to =  userSession.getCallingTo();
                         String myName = userSession.getName();
@@ -589,7 +585,7 @@ public class WebSocketServer {
                             responseJSON.addProperty("id", "registeredUsers");
                             responseJSON.addProperty("response", userListJson);
                             responseJSON.addProperty("message", "");
-                            log.error("sending userlist: {}",responseJSON.toString());
+                            log.debug("sending userlist: {}",responseJSON.toString());
                             userSession.sendMessage(responseJSON);
                        }else{
                            log.info("removing session id from registry because it's not open {}", userSession.getSession());
@@ -600,7 +596,7 @@ public class WebSocketServer {
 
 	private void call(UserSession caller, JsonObject jsonMessage) throws IOException {
                 
-		String to = jsonMessage.get("to").getAsString();
+    		String to = jsonMessage.get("to").getAsString();
 		String from = jsonMessage.get("from").getAsString();
                                 
                 boolean isScreensharing =  jsonMessage.has("screensharing");
@@ -626,7 +622,7 @@ public class WebSocketServer {
 		} 
                 else if(callee.isBusy()){
                     
-                        log.error("Callee [{}] does not exist! Rejecting call.", to);
+                        log.debug("Callee [{}] does not exist! Rejecting call.", to);
 
 			response.addProperty("id", "callResponse");
                         response.addProperty("response","rejected");
@@ -636,7 +632,7 @@ public class WebSocketServer {
                     
                 }
                 else {
-			log.error("Callee [{}] does not exist! Rejecting call.", to);
+			log.debug("Callee [{}] does not exist! Rejecting call.", to);
 
 			response.addProperty("id", "callResponse");
                         response.addProperty("response","rejected");
@@ -853,7 +849,7 @@ public class WebSocketServer {
                     }
                     //if(!sendCallback) 
                         stopperUser.clearWebRtcSessions();
-                    log.error("Stopped", sessionId);
+                    log.debug("Stopped", sessionId);
                     sendRegisteredUsers(); 
                 }
 		//}
@@ -879,7 +875,7 @@ public class WebSocketServer {
                     this.session.sendMessage(responseJSON);
                     
                 } catch (IOException ex) {
-                     log.error("removing session and stopping ping");  
+                     log.error("removing session and stopping ping"+this.session.getSessionId());  
                 }
                 
                
@@ -912,23 +908,23 @@ public class WebSocketServer {
             try{
                 Enumeration<MediaPipeline> e = pipelines.elements();
                 
-                log.error("current pipelines size():"+pipelines.size());
+                log.debug("current pipelines size():"+pipelines.size());
                 
                 while(e.hasMoreElements()){
                     MediaPipeline mp = e.nextElement();
                     if(mp!=null) 
-                        log.error("current pipeline:"+((mp.getName()!=null)?mp.getName():"NULL" )+ " : "+mp.getId());
+                        log.debug("current pipeline:"+((mp.getName()!=null)?mp.getName():"NULL" )+ " : "+mp.getId());
                 }
                 
-                log.error("current sessions keys:"+registry.getRegisteredUsers());
-                log.error("current UserSession size:"+registry.getUserSessions().size());
+                log.debug("current sessions keys:"+registry.getRegisteredUsers());
+                log.debug("current UserSession size:"+registry.getUserSessions().size());
                 Iterator<UserSession> i  = registry.getUserSessions().iterator();
                 while(i.hasNext()){
                     UserSession us = i.next();
-                    if(us!=null) log.error("current user:"+us.getName()+" -  "+us.getSessionId());
+                    if(us!=null) log.debug("current user:"+us.getName()+" -  "+us.getSessionId());
                 }
              }catch(Exception ex){
-                         log.error("General printCurrentUsage Error:"+ex.getMessage());
+                         log.debug("General printCurrentUsage Error:"+ex.getMessage());
              }
         }
 
