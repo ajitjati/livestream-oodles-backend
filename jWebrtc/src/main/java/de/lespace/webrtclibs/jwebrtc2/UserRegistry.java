@@ -25,6 +25,7 @@ public class UserRegistry {
 
 	private ConcurrentHashMap<String, UserSession> usersByName = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, UserSession> usersBySessionId = new ConcurrentHashMap<>();
+        
         private static final Logger log = LoggerFactory.getLogger(UserRegistry.class);
 	
         public void register(UserSession user) {
@@ -41,8 +42,7 @@ public class UserRegistry {
                 
 		usersByName.put(user.getName(), user);
 		usersBySessionId.put(user.getSession().getId(), user);
-            
-	}
+	}   
 
 	public UserSession getByName(String name) {
 		return usersByName.get(name);

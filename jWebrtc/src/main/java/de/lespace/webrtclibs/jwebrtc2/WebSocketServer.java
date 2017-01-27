@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import org.kurento.client.EndOfStreamEvent;
 import org.kurento.client.EventListener;
 import org.kurento.client.IceCandidate;
@@ -41,6 +42,7 @@ public class WebSocketServer {
 	
         private static final ConcurrentHashMap<String, MediaPipeline> pipelines = new ConcurrentHashMap<String, MediaPipeline>();
 	private static final ConcurrentHashMap<String, Date> pongs = new ConcurrentHashMap<String, Date>();
+	private static final ConcurrentHashMap<String, List> followerSessionsOfUser = new ConcurrentHashMap<String, List>();
 	
         public static UserRegistry registry = new UserRegistry();
 	
@@ -93,6 +95,8 @@ public class WebSocketServer {
                 UserSession user = registry.getBySession(session);
                
                 if(user!=null){ //only publish online status and kill session if user is still in the registry
+                   deregisterFollower(user);
+                    
                     try {
                             publishOnlineStatus(user.getName(), USER_STATUS_OFFLINE);
                     } catch (IOException e) {
@@ -134,6 +138,7 @@ public class WebSocketServer {
 		}
 
 		switch (jsonMessage.get("id").getAsString()) {
+                    
                 case "pong":
                         if(userSession!=null){
                             
@@ -144,6 +149,7 @@ public class WebSocketServer {
                               log.debug("got pong from peer size:"+pongs.size()+" "+pongs.toString());
                         }
                         break;
+                        
 		case "appConfig":
 			try {
 				appConfig(session, jsonMessage);
@@ -152,6 +158,7 @@ public class WebSocketServer {
 				handleErrorResponse(e, session, "appConfigResponse");
 			}
 			break;
+                        
 		case "register":
 			try {
                             
@@ -159,7 +166,7 @@ public class WebSocketServer {
                                 
 				if(registered) {
 					userSession = registry.getBySession(session);
-					sendRegisteredUsers();
+					sendRegisteredFollowers(userSession);
 					publishOnlineStatus(userSession.getName(), USER_STATUS_ONLINE);
 				}
 				
@@ -168,12 +175,14 @@ public class WebSocketServer {
 			}
 			break;
 		case "call":
+                    
 			try {
 				call(userSession, jsonMessage);
                                 printCurrentUsage();
 			} catch (Exception e) {
 				handleErrorResponse(e, session, "callResponse");
 			}
+                        
 			break;
 		case "incomingCallResponse":
 			try {
@@ -241,6 +250,7 @@ public class WebSocketServer {
                 case "checkOnlineStatus":
 			try {
 				queryOnlineStatus(session, jsonMessage);
+                                
 			} catch (IOException e) {
                             log.error(e.getLocalizedMessage(), e);
                             e.printStackTrace();
@@ -257,63 +267,6 @@ public class WebSocketServer {
 		}
 	}
         
-        /**
-         * determine one of the status OFFLINE, BUSY, or ONLINE of 
-         * the user given in the jsonMessage
-         * and sends the answer back to the calling session (wether or not the user is registered)
-        */ 
-	private void queryOnlineStatus(Session session, JsonObject jsonMessage) throws IOException {
-            
-		String user = jsonMessage.get("user").getAsString();
-		JsonObject responseJSON = new JsonObject();
-		responseJSON.addProperty("id", "responseOnlineStatus");
-                UserSession myUserSession = registry.getBySession(session);
-                responseJSON.addProperty("myUsername",myUserSession.getName());
-		UserSession userSession = registry.getByName(user);
-		if (userSession == null) {
-			responseJSON.addProperty("response", USER_STATUS_OFFLINE);
-		} else {
-			if (userSession.isBusy()) {
-				responseJSON.addProperty("response", USER_STATUS_BUSY);
-			} else {
-				responseJSON.addProperty("response", USER_STATUS_ONLINE);
-			}
-		}
-		responseJSON.addProperty("message", user);
-
-                if(session.isOpen()){
-                     log.debug("sending message:"+responseJSON.toString());
-                     session.getBasicRemote().sendText(responseJSON.toString());//responseJSON.getAsString()
-
-                }  
-                else log.debug("session {} is closed.", session.getId());
-	}
-	
-	/**
-	 * Publishes the online status of the given user to all other users.
-	 * 
-	 * @param user
-	 * @param status
-	 * @throws IOException
-	 */
-	public void publishOnlineStatus(String user, String status) throws IOException {
-		List<String> userList = registry.getRegisteredUsers();
-		String userListJson = new Gson().toJson(userList);
-
-		JsonObject responseJSON = new JsonObject();
-		responseJSON.addProperty("id", "responseOnlineStatus");
-		responseJSON.addProperty("response", status);
-		responseJSON.addProperty("message", user);
-               
-                log.debug("publishing online status to clients: {}",responseJSON);
-
-
-		for (UserSession userSession : registry.getUserSessions()) {
-                        responseJSON.addProperty("myUsername",userSession.getName()); //include my online sessinID
-			userSession.sendMessage(responseJSON);
-		}
-	}
-
 	private void releasePipeline(UserSession user) {
 		MediaPipeline pipeline = pipelines.remove(user.getSessionId());
 		if (pipeline != null) {
@@ -411,8 +364,7 @@ public class WebSocketServer {
 	 * @throws IOException
 	 */
             private void appConfig(Session session, JsonObject jsonMessage) throws IOException {
-
-                
+ 
                 String turnUsername = System.getProperty("TURN_USERNAME");
                 if(turnUsername==null || turnUsername.equals("")) turnUsername = "akashionata";
                 
@@ -422,17 +374,17 @@ public class WebSocketServer {
                 String turnUrl = System.getProperty("TURN_URL");
                 if(turnUrl==null || turnUrl.equals("")) turnUrl = "turn:5.9.154.226:3478";
                 
-                
                 String stunUrl = System.getProperty("STUN_URL");
                 if(stunUrl==null || stunUrl.equals("")) stunUrl = "stun:5.9.154.226:3478";
                
                 boolean turnEnabled = true;
                 boolean stunEnabled = true;
-                String type = "";
                 
-                try{
-                    if(jsonMessage.get("type")!=null) type = jsonMessage.get("type").getAsString(); 
-                }catch(Exception ex){System.err.println("type cannot be read from json...");}
+                String type = "";
+               
+                if(jsonMessage.has("type")) type = jsonMessage.get("type").getAsString(); 
+                if(jsonMessage.has("module")) registry.getBySession(session).setModule(jsonMessage.get("module").getAsInt());
+                else registry.getBySession(session).setModule(UserSession.MODULE_DEFAULT);
                 
                String stun = "{"+
                             "\"username\":\"\"," +
@@ -506,10 +458,7 @@ public class WebSocketServer {
 	 * @throws IOException
 	 */
 	private boolean register(Session session, JsonObject jsonMessage) throws IOException {
-
-            
-             
-                        
+ 
 		String name = jsonMessage.getAsJsonPrimitive("name").getAsString();
                 if(registry.exists(name)){
                     checkIfSessionIsAlive(registry.getByName(name));
@@ -521,11 +470,12 @@ public class WebSocketServer {
                 
 		UserSession newUser = new UserSession(session, name);
 		String response = "accepted";
+		String message = "";
 		
-                String message = "";
-		if (name.isEmpty()) {
-			response = "rejected";
-			message = "empty user name";
+                if (name.isEmpty()) {
+                    
+                    response = "rejected";
+                    message = "empty user name";
                 
 		//} else if (registry.exists(name)) { if this username already existed in a different session check if it's still alive (send message) if error kill it
            
@@ -565,21 +515,222 @@ public class WebSocketServer {
             }*/
             
         }
+        
+        /**
+         * Find current User in all UserSess
+         * @param navigatingUser 
+         */
+        private void deregisterFollower(UserSession navigatingUser){
+            log.debug("deregistering me as follower from all current Sessions {}", navigatingUser.getName());
+            Enumeration<String> e = followerSessionsOfUser.keys();
+            while(e.hasMoreElements()){
+                 String currentUsername  = e.nextElement();
+                 if(followerSessionsOfUser.get(currentUsername).contains(navigatingUser)){
+                     followerSessionsOfUser.get(currentUsername).remove(navigatingUser);
+                     log.debug("found me ({}) in user: {}",navigatingUser.getName(),currentUsername );
+                        try {
+                            if(registry.getByName(currentUsername)!=null)
+                            sendRegisteredFollowers(registry.getByName(currentUsername));
+                        } catch (IOException ex) {
+                            log.error("could not sendRegisteredFollowers {}",currentUsername);
+                        }
+                 }   
+            }     
+        }
+         
+        /**
+         * A status widget comes online and registeres its resupport users
+         * 
+         * 
+         * @param navigatingUser
+         * @param supportUser 
+         */
+        private void registerFollower(UserSession navigatingUser, String supportUsername){
+            
+            List<UserSession> favourites = null;
+            if(followerSessionsOfUser.get(supportUsername)==null){
+                favourites = new ArrayList<UserSession>();
+                favourites.add(navigatingUser);
+            }else{
+                  favourites = followerSessionsOfUser.get(supportUsername);
+                  if(!favourites.contains(navigatingUser)) 
+                    favourites.add(navigatingUser);
+            }
+            
+            followerSessionsOfUser.put(supportUsername,favourites);
+            try {
+                if(registry.getByName(supportUsername)!=null)
+                sendRegisteredFollowers(registry.getByName(supportUsername));
+            } catch (IOException ex) {
+                log.error("could not sendRegisteredFollowers {}",supportUsername);
+            }
+        }
+                /**
+         * determine one of the status OFFLINE, BUSY, or ONLINE of 
+         * the user given in the jsonMessage
+         * and sends the answer back to the calling session (wether or not the user is registered)
+         * 
+         * the querying user must be registered as "favourite"
+        */ 
+	private void queryOnlineStatus(Session session, JsonObject jsonMessage) throws IOException {
+            
+		String supportUser = jsonMessage.get("user").getAsString();
+		JsonObject responseJSON = new JsonObject();
+		responseJSON.addProperty("id", "responseOnlineStatus");
+                UserSession myUserSession = registry.getBySession(session);
+                responseJSON.addProperty("myUsername",myUserSession.getName());
+		UserSession supportUserSession = registry.getByName(supportUser);
+               
+                registerFollower(myUserSession,supportUser);
+		log.info("adding myUserSession {} to favourites of {} now: {} elements",
+                myUserSession.getName(),supportUser,
+                followerSessionsOfUser.size());
+                
+                if (supportUserSession == null) {
+			responseJSON.addProperty("response", USER_STATUS_OFFLINE);
+		} else {                                
+			if (supportUserSession.isBusy()) {
+				responseJSON.addProperty("response", USER_STATUS_BUSY);
+			} else {
+				responseJSON.addProperty("response", USER_STATUS_ONLINE);
+			}
+		}
+		responseJSON.addProperty("message", supportUser);
+
+                if(session.isOpen()){
+                     log.debug("sending message:"+responseJSON.toString());
+                     session.getBasicRemote().sendText(responseJSON.toString());//responseJSON.getAsString()
+
+                }  
+                else log.debug("session {} is closed.", session.getId());
+	}
+	
 	/**
-	 * Updates the list of registered users on all clients.
-	 * 
+	 * Publishes the online status of the given user to all online related users. (follower)
+	 * if a status user goes offline unregister as follower
+	 * @param user
+	 * @param status
 	 * @throws IOException
 	 */
-	private void sendRegisteredUsers() throws IOException {
-		List<String> userList = registry.getRegisteredUsers();
+	public void publishOnlineStatus(String user, String status) throws IOException {
+            
+                UserSession ourSession = registry.getByName(user);
+
+		JsonObject responseJSON = new JsonObject();
+		responseJSON.addProperty("id", "responseOnlineStatus");
+		responseJSON.addProperty("response", status);
+		responseJSON.addProperty("message", user);
+                
+                List follower  = followerSessionsOfUser.get(ourSession.getName());
+                if(follower!=null){
+                     Iterator<UserSession> i = follower.iterator();
+                     while(i.hasNext()) {
+                         
+                        UserSession currentFollower = i.next();
+                        log.info("MODULE_SUPPORT_WIDGET: publishing online status to client: {}",currentFollower.getName());
+                        
+                        if(currentFollower.getSession().isOpen()){ 
+                            responseJSON.addProperty("myUsername",currentFollower.getName()); //include my online sessinID
+                            currentFollower.sendMessage(responseJSON);
+                        }
+                    }
+                }
+                else{
+                    log.info("{} does not have any followers",ourSession.getName());
+                        
+                }
+                   
                
-		for (UserSession userSession : registry.getUserSessions()) {
+              //  log.info("publishing online status to clients: {}",responseJSON);
+
+           /*     UserSession ourSession = registry.getByName(user);
+                log.info("our session:"+ourSession.getName());
+                //we are posting our status to all other people
+                //if its the status widget we post it only our connected peers
+                //(peers which requested our online status)
+                //= we post the online status to all favourites of a user
+		if(ourSession.getModule()==UserSession.MODULE_DEFAULT){
+                     for (UserSession userSession : registry.getUserSessions()) {
+                        responseJSON.addProperty("myUsername",userSession.getName()); //include my online sessinID
+			userSession.sendMessage(responseJSON);
+                        log.info("MODULE_DEFAULT: sent message to client ");
+                    }
+                }
+                else if(ourSession.getModule()==UserSession.MODULE_SUPPORT_WIDGET){
+                    List follower  = followerSessionsOfUser.get(ourSession.getSessionId());
+                    Iterator<UserSession> i = follower.iterator();
+                     while(i.hasNext()) {
+                        
+                        UserSession currentFollower = i.next();
+                        
+                        log.info("MODULE_SUPPORT_WIDGET: publishing online status to client: {}",currentFollower.getName());
+                        
+                        if(currentFollower.getSession().isOpen()){ 
+                            responseJSON.addProperty("myUsername",currentFollower.getName()); //include my online sessinID
+                            currentFollower.sendMessage(responseJSON);
+                        }
+                    }
+                }*/
+	}
+	/**
+         * 
+	 * Updates the list of registered followers of the current UserSession. (default)
+         * 
+	 * @throws IOException
+	 */
+	private void sendRegisteredFollowers(UserSession myUserSession) throws IOException {
+                log.info("sendRegisteredFollowers");
+                //if status widget - get
+                //we are sending all registeredUsers
+                List followerList  = followerSessionsOfUser.get(myUserSession.getName());
+
+                if(followerList!=null){
+                    Iterator<UserSession> i = followerList.iterator();
+                    List publicationList = new ArrayList();
+                    while(i.hasNext()){
+                            UserSession thisSession = i.next();
+                        publicationList.add(thisSession.getName());
+                    }
+                    String userListJson = new Gson().toJson(publicationList);
+                    JsonObject responseJSON = new JsonObject();
+                    responseJSON.addProperty("id", "registeredUsers");
+                    responseJSON.addProperty("response", userListJson);
+                    responseJSON.addProperty("message", "");
+                    log.debug("sending userlist: {}",responseJSON.toString());
+                    myUserSession.sendMessage(responseJSON);
+                }
+        
+               
+                
+		//List<String> userList = registry.getRegisteredUsers();
+               
+                //go through all user sessions and send userlist
+		/*for (UserSession userSession : registry.getUserSessions()) {
+                    log.info("in loop");
                        if(userSession.getSession().isOpen()){
-                           
-                            ArrayList thisUserList = new ArrayList();
-                            thisUserList.addAll(userList);
-                            thisUserList.remove(userSession.getName()); //don't send own username
-                            String userListJson = new Gson().toJson(thisUserList);
+                           log.info("is open"+userSession.getName());
+                            ArrayList publicationUserList = new ArrayList();
+                            
+                            if(myUserSession!=null && myUserSession.getModule()==UserSession.MODULE_DEFAULT) //also see publishOnlineStatus!
+                               publicationUserList.addAll(userList);
+                            
+                            log.info("userSession: {}",userSession.getName());
+                     
+                            if(myUserSession!=null && myUserSession.getSessionId()==userSession.getSessionId()){
+                                    log.info("adding sessions.."); 
+                                      List favourites  = followerSessionsOfUser.get(myUserSession.getSessionId());
+                                  //  Iterator<String> i = userList.iterator();
+                                  //  while(i.hasNext()){
+                                         String session2add = i.next();
+                                         log.info("adding session:"+session2add); 
+                                       
+                                         if(myUserSession.getFavourites().contains(registry.getByName(session2add)))
+                                         publicationUserList.add(session2add);
+                                  //  }
+                            }
+                            
+                            publicationUserList.remove(userSession.getName()); //don't send own username
+                            String userListJson = new Gson().toJson(publicationUserList);
 
                             JsonObject responseJSON = new JsonObject();
                             responseJSON.addProperty("id", "registeredUsers");
@@ -588,10 +739,10 @@ public class WebSocketServer {
                             log.debug("sending userlist: {}",responseJSON.toString());
                             userSession.sendMessage(responseJSON);
                        }else{
-                           log.info("removing session id from registry because it's not open {}", userSession.getSession());
+                           log.info("removing session id from registry because it's not open {}", userSession.getSessionId());
                            registry.removeBySession(userSession.getSession());
                        }
-		}
+		}*/
 	}
 
 	private void call(UserSession caller, JsonObject jsonMessage) throws IOException {
@@ -790,10 +941,11 @@ public class WebSocketServer {
         
         public void killUserSession(Session session) throws IOException{
             String sessionId = session.getId();
-            log.debug("Killing usersession from of websocket id [{}]", sessionId);
-            registry.removeBySession(session);
             
-            sendRegisteredUsers(); 
+            log.debug("Killing usersession from of websocket id [{}]", sessionId);
+           // sendRegisteredFollowers(registry.getBySession(session));
+            registry.removeBySession(session);            
+            
         }
         
 	public void stop(Session session, boolean sendCallback) throws IOException {
@@ -828,11 +980,11 @@ public class WebSocketServer {
                     else if(stoppedUserTo!=null && stoppedUserTo.getSession()!=null){
                         log.debug("die id des stoppenden IST! die des anrufenden");
                         //wenn der anrufer auflegt. (wird anschließend, die pipeline des anrufenden gesucht und exisitert nicht mehr) 
-                       stopUser = stoppedUserTo;
-                       JsonObject message = new JsonObject();
-                       message.addProperty("id", "stopCommunication");
-                       if(sendCallback==true) message.addProperty("callback", "true");
-                       stopUser.sendMessage(message);
+                        stopUser = stoppedUserTo;
+                        JsonObject message = new JsonObject();
+                        message.addProperty("id", "stopCommunication");
+                        if(sendCallback==true) message.addProperty("callback", "true");
+                            stopUser.sendMessage(message);
                      //  if(!sendCallback)
                         stopUser.clearWebRtcSessions();                  
                    }
@@ -850,7 +1002,8 @@ public class WebSocketServer {
                     //if(!sendCallback) 
                         stopperUser.clearWebRtcSessions();
                     log.debug("Stopped", sessionId);
-                    sendRegisteredUsers(); 
+                    
+                    sendRegisteredFollowers(stopperUser); 
                 }
 		//}
                 //else{ //piplines not yet have been created - but a user tried to call another and the other hangs up instead of answers the call
@@ -890,7 +1043,7 @@ public class WebSocketServer {
                 if(pongs.get(this.session.getSessionId()) !=null && 
                        pongs.get(this.session.getSessionId()).getTime()+10000 < new Date().getTime()){
                    try {
-                       //removeCompleteSessionAndInformParties(this.session.getSession());
+          
 
                        this.session.getSession().close();
                    } catch (IOException ex) {

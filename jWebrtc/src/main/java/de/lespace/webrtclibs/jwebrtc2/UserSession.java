@@ -33,7 +33,11 @@ public class UserSession {
 
   private final String name;
   private final Session session;
-
+  
+  public static final int MODULE_DEFAULT = 0;
+  public static final int MODULE_SUPPORT_WIDGET = 1;
+  
+  public int module = MODULE_DEFAULT;
   private String sdpOffer;
   private String callingTo;
   private String callingFrom;
@@ -85,8 +89,10 @@ public class UserSession {
         log.debug("Sending message from user '{}': {}", name, message);
         session.getBasicRemote().sendText(message.toString());
     }
-    else 
+    else{
         log.debug("session of user '{}' is closed.", name);
+    } 
+        
   }
 
   public String getSessionId() {
@@ -113,6 +119,7 @@ public class UserSession {
   public void clearWebRtcSessions() {
     this.webRtcEndpoint = null;
     this.candidateList.clear();
+  //  this.favourites.clear();
   }
   
     public boolean isBusy() {
@@ -133,6 +140,20 @@ public class UserSession {
             this.pong = date;
             System.out.println("pong wurde gesetzt:"+date);
     }
-    
+
+    /**
+     * @return the module
+     */
+    public int getModule() {
+        return module;
+    }
+
+    /**
+     * @param module the module to set
+     */
+    public void setModule(int module) {
+        this.module = module;
+    }
+        
 }
 

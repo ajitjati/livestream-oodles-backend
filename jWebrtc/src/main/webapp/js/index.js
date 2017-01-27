@@ -260,10 +260,13 @@ ws.onmessage = function(message) {
 
 function requestAppConfig() {
     log('requesting app config');
+    
     var message = {
         id: 'appConfig',
-        type: 'browser'
+        type: 'browser',
+        module: 1
     };
+    
     sendMessage(message);
 }
 

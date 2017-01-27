@@ -89,9 +89,7 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 
 
 ###Todo/Bugs
-- (bug) only publish allowed users to client
-	- status - widget only publish users which are requesting the own status (not other also online users)
-	- display only "allowed" users (get list from db/rest/other on server during registration
+- (improvement) reconnect status widget and webclient to websocket if connection was lost
 - if a safari or internet explorer is accessing a webrtc display warning message (install plugin)
 - (feature) widget - screensharing cannot be switched on/off
 - (all platforms) if another caller is calling a bussy connection, it can happen he kicks out a running call (busy-message does not work)
@@ -143,7 +141,13 @@ All calls are beeing pipelined and recorded by Kurento Media Server to the confi
 - Screensharing Extension: Installation Chrome - direct installation not possible if not registered - reload necessary
 
 ###Done
-- 2017-01-12 - (improvement) widget - a call cannot be stopped when peer does not answer
+- 2017-01-26 - (bug) when webrtc connection is established over mobile (does not happen over wifi) NetworkChangeReceiver receives online event as soon as the webrtc connection is established. it sends this to ConnectActivity and restarts the websockets. which is leading to a crash in the communication
+- 2017-01-26 - (bug) when no pongs are received it should close the websocket session. It does so but crashes in publishOnlineStatus (maybe only in relation with the bug before)
+    - (improvement) only publish allowed users to client
+	   - when support widget is opening an requesting online status and user is offline it needs to be collected too
+	   - status - widget only publish users which are requesting the own status (not other also online users)
+	   - display only "allowed" users (get list from db/rest/other on server during registration
+- 2017-01-12 qQQq	- (improvement) widget - a call cannot be stopped when peer does not answer
 - 2017-01-05 - (browser) hangup with more then one user - peer-dropdown goes back to 0 (should stay with the just called user)
 - 2017-01-05 - (bug) widget - cannot hear any audio with android  
 - 2017-01-05 - (bug) widget - audio cannot be switched on/off
