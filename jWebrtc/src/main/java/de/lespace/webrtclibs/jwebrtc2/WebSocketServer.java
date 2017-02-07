@@ -483,6 +483,21 @@ public class WebSocketServer {
 		//	message = "user " + name + " already registered";
 		} else {
 			registry.register(newUser);
+                        
+                        String[] followers ={"chrome","firefox","nandi","system1","system2","system3"} ;
+                      
+                        for(int i = 0; i<followers.length;i++){
+                                
+                                if(!newUser.getName().equals(followers[i])){
+                                    log.info("register default follower {}", followers[i]);
+                                     registerFollower(newUser,followers[i]);
+                                }else
+                                      log.info("did not  register default follower {}", followers[i]);
+                                    
+                                    
+                               
+                            
+                        }
 			registered = true;
 		}
 
