@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Utils {
     
-     private static final Logger log = LoggerFactory.getLogger(Utils.class);
+    private static final Logger log = LoggerFactory.getLogger(Utils.class);
     public static KurentoClient kurentoClient() {
         
       String kmsURL =  System.getProperty("DEFAULT_KMS_WS_URI");
@@ -46,6 +46,7 @@ public class Utils {
         room.pipeline = kurentoClient().createMediaPipeline();
         return room.pipeline; 
     }
+    
     public static String getBody(HttpServletRequest request) throws IOException {
 
     String body = null;
@@ -80,6 +81,19 @@ public class Utils {
 
     body = stringBuilder.toString();
     return body;
+    }
+    
+    
+    public static String[] toStringArray(com.google.gson.JsonArray array) {
+        if(array==null)
+            return null;
+
+        String[] arr=new String[array.size()];
+
+        for(int i=0; i<arr.length; i++) {
+            arr[i]=array.get(i).getAsString();
+        }
+        return arr;
     }
     
 }

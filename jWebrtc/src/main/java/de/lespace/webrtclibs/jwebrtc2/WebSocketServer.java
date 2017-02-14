@@ -8,6 +8,7 @@ import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -460,6 +461,12 @@ public class WebSocketServer {
 	private boolean register(Session session, JsonObject jsonMessage) throws IOException {
  
 		String name = jsonMessage.getAsJsonPrimitive("name").getAsString();
+                String[] followers ={"chrome","firefox","nandi","system1","system2","system3"} ;
+               
+                if(jsonMessage.has("followers")){
+                     followers = Utils.toStringArray(jsonMessage.getAsJsonArray("followers"));
+                }
+                            
                 if(registry.exists(name)){
                     checkIfSessionIsAlive(registry.getByName(name));
                 }
@@ -482,21 +489,19 @@ public class WebSocketServer {
 		//	response = "skipped";
 		//	message = "user " + name + " already registered";
 		} else {
+                        if (registry.exists(name)){
+                                registry.getByName(name).clearWebRtcSessions();
+                        }
+                        
 			registry.register(newUser);
                         
-                        String[] followers ={"chrome","firefox","nandi","system1","system2","system3"} ;
-                      
                         for(int i = 0; i<followers.length;i++){
                                 
                                 if(!newUser.getName().equals(followers[i])){
                                     log.info("register default follower {}", followers[i]);
                                      registerFollower(newUser,followers[i]);
-                                }else
+                                 }else
                                       log.info("did not  register default follower {}", followers[i]);
-                                    
-                                    
-                               
-                            
                         }
 			registered = true;
 		}
