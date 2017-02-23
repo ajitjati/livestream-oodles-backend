@@ -8,8 +8,9 @@ import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import de.lespace.apprtc.thrift.JavaServer;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -19,7 +20,6 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
 import org.kurento.client.EndOfStreamEvent;
 import org.kurento.client.EventListener;
 import org.kurento.client.IceCandidate;
@@ -52,7 +52,7 @@ public class WebSocketServer {
 	private static final String USER_STATUS_ONLINE = "online";
         
         private static final Logger log = LoggerFactory.getLogger(WebSocketServer.class);
-        
+        public static boolean started = false;
         
 	@OnOpen
 	public void onOpen(Session session) {
@@ -61,8 +61,16 @@ public class WebSocketServer {
 		registry.register(newUser);
 		printCurrentUsage();
                 
+                if(!started){
+                    new JavaServer().start();
+                    started=true;
+                }
+                
+                Utils.sendThriftRegistration(newUser.getName());
+              
                 Timer timer = new Timer();
                 timer.schedule(new Ping(newUser), 0, 5000);
+                
 	}
 
         
@@ -128,7 +136,7 @@ public class WebSocketServer {
 	@OnMessage
 	public void onMessage(String _message, Session session) {
 
-		log.debug("apprtcWs [{}] received message: {}", session.getId(), _message);
+		log.info("apprtcWs [{}] received message: {}", session.getId(), _message);
 		JsonObject jsonMessage = gson.fromJson(_message, JsonObject.class);
 		UserSession userSession = registry.getBySession(session);
 
