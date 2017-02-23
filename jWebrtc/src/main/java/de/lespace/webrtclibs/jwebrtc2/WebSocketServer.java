@@ -66,7 +66,7 @@ public class WebSocketServer {
                     started=true;
                 }
                 
-                Utils.sendThriftRegistration(newUser.getName());
+               // Utils.sendThriftRegistration(newUser.getName()); //send Thrift call to Thrift-Server 
               
                 Timer timer = new Timer();
                 timer.schedule(new Ping(newUser), 0, 5000);

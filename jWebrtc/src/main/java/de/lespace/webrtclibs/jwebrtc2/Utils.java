@@ -116,8 +116,17 @@ public class Utils {
     public static void sendThriftRegistration(String user){
            try {
       TTransport transport;//"172.20.10.6"
-
-      transport = new TSocket("192.168.43.151", 9090);
+      String THRIFT_SERVER = "192.168.43.151";
+      int THRIFT_PORT = 9090;
+      if(System.getProperty("THRIFT_SERVER")!=null)
+        THRIFT_SERVER = System.getProperty("THRIFT_SERVER");
+      
+      try{
+        if(System.getProperty("THRIFT_PORT")!=null)
+        THRIFT_PORT = Integer.parseInt(System.getProperty("THRIFT_PORT")); 
+      }catch(Exception ex){}
+              
+      transport = new TSocket(THRIFT_SERVER, THRIFT_PORT);
       transport.open();
 
       TProtocol protocol = new  TBinaryProtocol(transport);
