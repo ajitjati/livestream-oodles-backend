@@ -9,7 +9,7 @@ import javax.websocket.server.ServerEndpoint;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import de.lespace.apprtc.thrift.JavaServer;
+
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -52,7 +52,7 @@ public class WebSocketServer {
 	private static final String USER_STATUS_ONLINE = "online";
         
         private static final Logger log = LoggerFactory.getLogger(WebSocketServer.class);
-        public static boolean started = false;
+
         
 	@OnOpen
 	public void onOpen(Session session) {
@@ -60,17 +60,9 @@ public class WebSocketServer {
                 UserSession newUser = new UserSession(session, "webuser@"+session.getId());
 		registry.register(newUser);
 		printCurrentUsage();
-                
-                if(!started){
-                    new JavaServer().start();
-                    started=true;
-                }
-                
-               // Utils.sendThriftRegistration(newUser.getName()); //send Thrift call to Thrift-Server 
-              
+
                 Timer timer = new Timer();
-                timer.schedule(new Ping(newUser), 0, 5000);
-                
+                timer.schedule(new Ping(newUser), 0, 5000);    
 	}
 
         
@@ -83,7 +75,6 @@ public class WebSocketServer {
                 printCurrentUsage();
                 
 		if (error != null) {
-			// System.err.println(" error:"+ error);
 			log.error("Error: {}", error.getLocalizedMessage());
 		}
 	}
