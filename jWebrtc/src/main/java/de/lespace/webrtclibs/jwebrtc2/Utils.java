@@ -10,9 +10,14 @@ import de.lespace.apprtc.thrift.Call;
 import de.lespace.apprtc.thrift.RegisterUserId;
 import de.lespace.apprtc.thrift.Webrtc;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Arrays;
+import java.util.logging.Level;
+import javapns.Push;
+import javapns.notification.PushNotificationBigPayload;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
@@ -27,6 +32,7 @@ import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
+import org.json.JSONException;
 import org.kurento.client.KurentoClient;
 import org.kurento.client.MediaPipeline;
 import org.slf4j.Logger;
@@ -113,33 +119,81 @@ public class Utils {
         return arr;
     }
     
-    public static void sendThriftRegistration(String user){
-           try {
-      TTransport transport;//"172.20.10.6"
-      String THRIFT_SERVER = "192.168.43.151";
-      int THRIFT_PORT = 9090;
-      if(System.getProperty("THRIFT_SERVER")!=null)
-        THRIFT_SERVER = System.getProperty("THRIFT_SERVER");
-      
-      try{
-        if(System.getProperty("THRIFT_PORT")!=null)
-        THRIFT_PORT = Integer.parseInt(System.getProperty("THRIFT_PORT")); 
-      }catch(Exception ex){}
-              
-      transport = new TSocket(THRIFT_SERVER, THRIFT_PORT);
-      transport.open();
+    public static void sendThriftRegistration(String user) {
+        try {
+            TTransport transport;//"172.20.10.6"
+            String THRIFT_SERVER = "192.168.43.151";
+            int THRIFT_PORT = 9090;
+            if (System.getProperty("THRIFT_SERVER") != null) {
+                THRIFT_SERVER = System.getProperty("THRIFT_SERVER");
+            }
 
-      TProtocol protocol = new  TBinaryProtocol(transport);
-      Webrtc.Client client = new Webrtc.Client(protocol);
-      String registerResult = client.registerUserId(new RegisterUserId(user,"token")).getResponse();
-      System.out.println("Result:"+registerResult);
-      transport.close();
-    } catch (TException x) {
-      x.printStackTrace();
+            try {
+                if (System.getProperty("THRIFT_PORT") != null) {
+                    THRIFT_PORT = Integer.parseInt(System.getProperty("THRIFT_PORT"));
+                }
+            } catch (Exception ex) {
+            }
+
+            transport = new TSocket(THRIFT_SERVER, THRIFT_PORT);
+            transport.open();
+
+            TProtocol protocol = new TBinaryProtocol(transport);
+            Webrtc.Client client = new Webrtc.Client(protocol);
+            String registerResult = client.registerUserId(new RegisterUserId(user, "token")).getResponse();
+            System.out.println("Result:" + registerResult);
+            transport.close();
+        } catch (TException x) {
+            x.printStackTrace();
+        }
     }
+    
+    public static void sendApplePushkitNotification(final Call call, final String toToken){
+        try {
+             log.info("sending pushkit notification to token:"+toToken+" length:"+toToken.length());
+            PushNotificationBigPayload payload = PushNotificationBigPayload.complex();
+            payload.addCustomDictionary("fromName", call.fromName);
+            payload.addCustomDictionary("toName", call.toName);
+            payload.addCustomDictionary("fromUUID", call.fromUUID);
+            payload.addCustomDictionary("toUUID", call.toUUID);
+
+            String p12File = "~/certificate.p12";              
+            File fileP12File = new File(p12File);
+            if(!fileP12File.exists()){
+               
+                java.util.logging.Logger.getLogger(
+                        Utils.class.getName()).log(Level.INFO, "looking in prooperties of sytem environment for certificate file"
+                        + "because it was not found in path:"+p12File);
+                  
+                if (System.getProperty("PUSHKIT_CERTIFICATE_P12_FILE") != null) {
+                    p12File = System.getProperty("PUSHKIT_CERTIFICATE_P12_FILE");
+                    fileP12File = new File(p12File);
+                    if(!fileP12File.exists()){
+                        throw new Exception("certificate does not exist in configured location:"+p12File);
+                    }
+                    java.util.logging.Logger.getLogger(
+                     Utils.class.getName()).log(Level.INFO, "using certificate configuredin system environment "
+                     + "because certificate file is not found in path:"+p12File);
+                }
+            }
+            if(!fileP12File.canRead())
+                throw new Exception("certificate does exist, but server cannot read:"+p12File);  
+            
+            String password = System.getProperty("PUSHKIT_CERTIFICATE_PASSWORD");
+            boolean production =  (System.getProperty("PUSHKIT_PRODUCTION")==null)?false:(System.getProperty("PUSHKIT_PRODUCTION").equalsIgnoreCase("true"))?true:false;
+            Push.payload(payload, p12File, password, production, toToken);
+            
+        } catch (JSONException ex) {
+            log.error("problem with JSON format:",ex);
+            java.util.logging.Logger.getLogger(Utils.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (Exception ex) {
+              log.error("Error durring posting to pushkit message to apple",ex);
+        }
+        
     }
-     public static void sendGsmNotification(final Call call, final String toToken) {
-         
+    
+    public static void sendGsmAndroidFirebaseNotification(final Call call, final String toToken) {
+        log.info("sending firebase notification to token:"+toToken+" length:"+toToken.length());
         Thread t = new Thread() {
             public void run() {
                 log.info("sendGsmNotification to:"+call.toName);
@@ -181,11 +235,8 @@ public class Utils {
                     json.add("data", jsonData);
                     StringEntity se = new StringEntity(json.toString());
                     se.setContentType("application/json");
-                    String key = "key=AAAAiV24asc:APA91bEdIbyGOgpJHVHZ9CgWqxozNjDbXjUt5GeRb7m87iASljWlXwuLEGxozkcY0VD7h6RbuZj5YWU5wlKwqxS11QVuvl0K164W2nfenvQcyR-FMuFctSmtGXouW1AT2ux2zOXxId0a";
-                   // String key = "key=AAAAiV24asc:APA91bEdIbyGOgpJHVHZ9CgWqxozNjDbXjUt5GeRb7m87iASljWlXwuLEGxozkcY0VD7h6RbuZj5YWU5wlKwqxS11QVuvl0K164W2nfenvQcyR-FMuFctSmtGXouW1AT2ux2zOXxId0a"
-                    
-                            //String key = "key=AAAA9q9OpHo:APA91bGN0eLOXi97S3GDOmTC4s3vCwfTGsV_ExSwe2CgpylW6Vd8XwChNWtoD3iP4x7koUYC2ZKB0o8-cgYR51z1Bq7EA-BemXI6VenTkTcR91ZERUzW2GMksIcaJiHq8GPY8B-jFw6ByAp6cdqKjDTgS3rV5oSymg"
-                    
+                    String key = System.getProperty("FIREBASE_GSM_KEY");; //"key=AAAAiV24asc:APA91bEdIbyGOgpJHVHZ9CgWqxozNjDbXjUt5GeRb7m87iASljWlXwuLEGxozkcY0VD7h6RbuZj5YWU5wlKwqxS11QVuvl0K164W2nfenvQcyR-FMuFctSmtGXouW1AT2ux2zOXxId0a";
+            
                     post.setHeader(new BasicHeader("Authorization",key));
                     post.setEntity(se);
                     response = client.execute(post);

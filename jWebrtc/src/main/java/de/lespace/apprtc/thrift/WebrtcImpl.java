@@ -38,9 +38,13 @@ public class WebrtcImpl implements Webrtc.Iface {
         RegisterUserId registerUserId =  registry.get(findRegistration);
         log.info("found registerUserId:"+registerUserId.userId+ " with token:"+registerUserId.firebaseToken);
         String toToken = registerUserId.firebaseToken;
-        log.info("sending notification to token:"+toToken);
-        Utils.sendGsmNotification(call,toToken);
-        
+       
+        //if()
+        if(toToken.length()==64)
+            Utils.sendApplePushkitNotification(call,toToken);
+        else
+            Utils.sendGsmAndroidFirebaseNotification(call,toToken);
+
         return new CallResult("Call from:"+call.fromName+"("+call.fromUUID+") to:"+call.toName+" ("+call.fromUUID+")");
     }
 

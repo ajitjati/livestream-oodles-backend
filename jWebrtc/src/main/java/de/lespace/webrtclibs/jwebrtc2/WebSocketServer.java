@@ -778,9 +778,9 @@ public class WebSocketServer {
     		String to = jsonMessage.get("to").getAsString();
 		String from = jsonMessage.get("from").getAsString();
                                 
-                boolean isScreensharing =  jsonMessage.has("screensharing");
+                boolean isDirect =  jsonMessage.has("direct");
 		// System.out.println("call from :" + from + " to:" + to);
-		log.info("call from [{}] to [{}]", from, to, isScreensharing);
+		log.info("call from [{}] to [{}] direct: {}", from, to, isDirect);
 
 		JsonObject response = new JsonObject();
 
@@ -791,7 +791,7 @@ public class WebSocketServer {
 			caller.setCallingTo(to);
 
 			response.addProperty("id", "incomingCall");
-                        if(isScreensharing) response.addProperty("screensharing", "true");  
+                        if(isDirect) response.addProperty("direct", "true");  
 			response.addProperty("from", from);
 
 			log.debug("Sending response [{}] to callee [{}]", response.toString(), callee.getName());
