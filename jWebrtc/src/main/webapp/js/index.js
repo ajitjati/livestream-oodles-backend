@@ -74,7 +74,7 @@ function setRegisterState(nextState) {
             showButton('#terminate');
             showButton('#audioEnabled');
             showButton('#call');
-            
+
             showButton('#peers');
 
             setCallState(NO_CALL);
@@ -166,11 +166,11 @@ $(function() {
   chkScreenEnabled.on("click", function() {
     toggleScreenSharing();
   })
-  
+
   $( "#screenOutput" ).dblclick(function() {
     fullscreen() ;
   });
-  
+
 });
 
 window.onbeforeunload = function() {
@@ -196,13 +196,13 @@ ws.onmessage = function(message) {
                 break;
             case 'callScreenResponse':
                 callScreenResponse(parsedMessage);
-                break;         
+                break;
             case 'incomingCall':
                 incomingCall(parsedMessage);
             break;
             case 'incomingScreenCall':
                 incomingScreenCall(parsedMessage);
-            break;    
+            break;
             case 'startCommunication':
                 startCommunication(parsedMessage);
                 break;
@@ -355,13 +355,13 @@ function toggleScreenSharing() {
   }else{
         stopScreen();
   }
-  
+
 }
 
 // enable or disable screen sharing
 function setScreenSharingEnabled(enabled) {
   if(enabled) isExtensionInstalled();
-  
+
   isScreenSharingEnabled = enabled; //&& isScreenSharingAvailable;
 
   $(chkScreenEnabled).toggleClass('btn-danger', isScreenSharingEnabled);
@@ -462,13 +462,13 @@ function startCommunication(message) {
     });
     console.log("answer processed");
   //  setVideoStreamEnabled(isWebcamEnabled || isScreenSharingEnabled);
-} 
+}
 
 // Start streaming on callees side
 function startScreenCommunication(message) {
-    
+
   console.log("startScreenCommunication");
-  
+
     webRtcPeer2.processAnswer(message.sdpAnswer, function(error) {
         showButton('#screenOutput');
         if (error)
@@ -476,7 +476,7 @@ function startScreenCommunication(message) {
     });
     console.log("answer for screen processed");
   //  setVideoStreamEnabled(isWebcamEnabled || isScreenSharingEnabled);
-} 
+}
 
 /*
 Someone is calling
@@ -531,20 +531,20 @@ function incomingCall(message) {
 Someone is calling
 */
 function incomingScreenCall(message) {
-  
+
         console.log("accepting screen call");
 
         from = message.from;
-        
+
         var constraints = {
             audio: false
         };
-        
+
         var options = {
         //    localVideo: videoInput,
             remoteVideo: screenOutput,
             onicecandidate: onIceCandidateScreen,
-            onerror: onError,   
+            onerror: onError,
             mediaconstrains: constraints
         }
         options.configuration = configuration;
@@ -600,7 +600,7 @@ function register() {
 }
 
 function call() {
-    
+
     if (document.getElementById('peer').value == '') {
         window.alert('You must specify the peer name');
         return;
@@ -637,7 +637,7 @@ function additionalScreenCall() {
             showButton('#screenOutput');
         // first get audio stream
         var audioConstraints = {
-          audio: false,  //turn this true in case you want to share this in a single stream 
+          audio: false,  //turn this true in case you want to share this in a single stream
           video: true,
         };
 
@@ -647,7 +647,7 @@ function additionalScreenCall() {
           console.error("Could not get audio stream! " + error);
         });
 
-    } 
+    }
 }
 
 function initiateScreenSharing(audioStream) {
@@ -661,7 +661,7 @@ function initiateScreenSharing(audioStream) {
         var constraints = {
             audio: false
         };
-        
+
         var options = {
               localVideo: screenOutput,
              // remoteVideo: videoOutput,
@@ -672,7 +672,7 @@ function initiateScreenSharing(audioStream) {
               sendSource: 'window',
               mediaConstraints: constraints
         }
-          
+
           options.configuration = configuration;
           webRtcPeer2 = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
               function(error) {
@@ -704,7 +704,7 @@ function play() {
         remoteVideo: videoOutput,
         onicecandidate: onIceCandidate
     }
-    
+
     webRtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendrecv(options,
         function(error) {
             if (error) {
@@ -738,7 +738,7 @@ function onOfferCallScreen(error, offerSdp) {
     var message = {
         id: 'callScreen',
         from: document.getElementById('name').value,
-        to: $('#peer').val()?$('#peer').val():from,  //this should be read from a local variable which is written 
+        to: $('#peer').val()?$('#peer').val():from,  //this should be read from a local variable which is written
         sdpOffer: offerSdp
     };
     sendMessage(message);
@@ -767,7 +767,7 @@ function stop(message) {
     var stopMessageId = (callState == IN_CALL || callState == PROCESSING_CALL) ? 'stop' : 'stopPlay';
     setCallState(NO_CALL);
     if (webRtcPeer) {
-        
+
         console.log('message is:' + message);
         hideSpinner(videoInput, videoOutput);
         document.getElementById('videoSmall').display = 'block';
@@ -791,7 +791,7 @@ function stopScreen(message) {  //message true means: stopScreen was called from
         $(chkScreenEnabled).toggleClass('btn-danger', false);
         hideButton('#screenOutput');
         console.log('message is:' + message);
-       
+
         document.getElementById('screenSmall').display = 'block';
         webRtcPeer2.dispose();
         webRtcPeer2 = null;
@@ -1046,7 +1046,7 @@ function fullscreen(){
      call(req);
     } else if (element.webkitRequestFullscreen) {
       req = element.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
-  
+
       call(req);
     } else if (element.msRequestFullscreen) {
       req =  element.msRequestFullscreen();
