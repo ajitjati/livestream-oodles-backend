@@ -13,7 +13,7 @@ module.exports = function () {
   var getOfflineMessage = function(req, res, callback){
     console.log("in controller");
     var username = req.params.username;
-    var peer = req.params.peer;
+    var peer = req.params.bare_peer;
     console.log(req.params);
 //console.log(userName);
     this.services.chatService.getOfflineMessage(username,peer,callback)

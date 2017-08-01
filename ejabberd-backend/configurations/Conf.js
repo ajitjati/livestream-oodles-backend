@@ -68,7 +68,7 @@ var configVariables = function () {
     case 'production':
 
         var config = {
-            port:5280,
+            port:3000,
            host: 'http://180.151.230.12:5280/',
            verificationUrl:'http://180.151.230.12:5280/verify/',
 

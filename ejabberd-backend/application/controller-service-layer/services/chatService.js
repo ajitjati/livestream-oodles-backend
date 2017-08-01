@@ -12,9 +12,9 @@ ChatService.prototype = new BaseService();
 
 ChatService.prototype.getConversation = function (username,peer,callback) {
   console.log("in chat service",username,peer);
-  knex('archive').select('txt').where({
+  knex('archive').select('username','bare_peer','timestamp','txt').where({
     'username':username,
-    'peer':peer
+    'bare_peer':peer
   })
   .then(function(results){
     //    if (err) throw err
