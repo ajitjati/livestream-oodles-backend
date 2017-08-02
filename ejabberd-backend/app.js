@@ -9,8 +9,10 @@ global.app = module.exports = express();
 app.use(bodyParser.raw({
         type: 'application/vnd.api+json'
     }))
-app.use(bodyParser());
-
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
     // error handler
 app.use(function(err, req, res, next) {
     // specific for validation errors
